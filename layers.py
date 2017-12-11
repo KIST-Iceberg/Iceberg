@@ -30,8 +30,8 @@ def conv2d(inputs, filters, ksize, strides, padding, activation, keep_prob, name
     with tf.name_scope(name):
         layer = layer_method(inputs, filters=filters, kernel_size=ksize, strides=strides, padding=padding)
         if activation is not None:
-            act = activation(layer)
-        droped = tf.layers.dropout(act, rate=keep_prob)
+            layer = activation(layer)
+        droped = tf.layers.dropout(layer, rate=keep_prob)
 
     return droped
 
@@ -53,6 +53,10 @@ def make_conv_layers(inputs, filters, ksizes, strieds, paddings, activations, ke
             layer: super-resolution layer
     """
 
+    layer_name = 'conv_'
+    if is_deconv:
+        layer_name = 'deconv_'
+
     next_inputs = inputs
 
     # make layers
@@ -64,8 +68,51 @@ def make_conv_layers(inputs, filters, ksizes, strieds, paddings, activations, ke
                              padding=paddings[layer_num],
                              activation=activations[layer_num],
                              keep_prob=keep_probs[layer_num],
-                             name='deconv_' + str(layer_num),
+                             name=layer_name + str(layer_num),
                              is_deconv=is_deconv)
+
+    return next_inputs
+
+
+def dense(inputs, out_dim, activation, keep_prob, name):
+    """ dense layer
+        Args:
+            inputs: tensor
+            out_dim: output dim, int
+            activation: activation function
+            keep_prob: drop_out parameter, float
+            name: name of layer
+
+        Return:
+            layer: dense layer
+    """
+    with tf.name_scope(name):
+        layer = tf.layers.dense(inputs, out_dim)
+        if activation is not None:
+            layer = activation(layer)
+        droped = tf.layers.dropout(layer, keep_prob)
+        return droped
+
+
+def make_dense_layer(inputs, out_dims, activations, keep_probs):
+    """ dense layer
+            Args:
+                inputs: tensor
+                out_dims: output dim, list of int
+                activations: list of activation function
+                keep_probs: list of drop_out parameter, float
+
+            Return:
+                layer: dense layers
+    """
+
+    next_inputs = inputs
+    for layer_num in range(len(out_dims)):
+        next_inputs = dense(inputs,
+                            out_dim=out_dims[layer_num],
+                            activation=activations[layer_num],
+                            keep_prob=keep_probs[layer_num],
+                            name='dense_'+str(layer_num))
 
     return next_inputs
 
