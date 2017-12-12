@@ -28,7 +28,7 @@ def getHigh(img, length=1):
 
 	rows = np.size(img, 0) #taking the size of the image
 	cols = np.size(img, 1)
-	crow, ccol = rows/2, cols/2
+	crow, ccol = int(rows/2), int(cols/2)
 	
 	fshift[crow-length:crow+length, ccol-length:ccol+length] = 0
 	f_ishift= np.fft.ifftshift(fshift)
