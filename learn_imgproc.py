@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split
 from os.path import join as opj
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from CyclicLR import CyclicLR
 
 import pylab
 plt.rcParams['figure.figsize'] = 10, 10
@@ -40,10 +41,15 @@ def getHigh(img, length=1):
 	return img_back
 
 #Generate the training data
+train.inc_angle = train.inc_angle.replace('na',0)
+idx_meaningful = np.where(train.inc_angle>0)
+
 #Create 3 bands having HH, HV and avg of both
 X_band_1 = np.array([getHigh(np.array(band).astype(np.float32).reshape(75, 75)) for band in train["band_1"]])
 X_band_2 = np.array([getHigh(np.array(band).astype(np.float32).reshape(75, 75)) for band in train["band_2"]])
 X_train  = np.concatenate([X_band_1[:, :, :, np.newaxis], X_band_2[:, :, :, np.newaxis],((X_band_1+X_band_2)/2)[:, :, :, np.newaxis]], axis=-1)
+
+X_train = X_train[idx_meaningful[0],...]
 
 # Flips
 def get_more_images(imgs):
@@ -93,22 +99,22 @@ def getModel():
 	#Building the model
 	gmodel=Sequential()
 	#Conv Layer 1
-	gmodel.add(Conv2D(64, kernel_size=(3, 3),activation='elu', input_shape=(75, 75, 3)))
+	gmodel.add(Conv2D(64, kernel_size=(3, 3),activation='relu', input_shape=(75, 75, 3)))
 	gmodel.add(MaxPooling2D(pool_size=(3, 3), strides=(2, 2)))
 	gmodel.add(Dropout(dropoutRate))
 
 	#Conv Layer 2
-	gmodel.add(Conv2D(128, kernel_size=(3, 3), activation='elu' ))
+	gmodel.add(Conv2D(128, kernel_size=(3, 3), activation='relu' ))
 	gmodel.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
 	gmodel.add(Dropout(dropoutRate))
 
 	#Conv Layer 3
-	gmodel.add(Conv2D(128, kernel_size=(3, 3), activation='elu'))
+	gmodel.add(Conv2D(128, kernel_size=(3, 3), activation='relu'))
 	gmodel.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
 	gmodel.add(Dropout(dropoutRate))
 
 	#Conv Layer 4
-	gmodel.add(Conv2D(64, kernel_size=(3, 3), activation='elu'))
+	gmodel.add(Conv2D(64, kernel_size=(3, 3), activation='relu'))
 	gmodel.add(MaxPooling2D(pool_size=(2, 2), strides=(2, 2)))
 	gmodel.add(Dropout(dropoutRate))
 
@@ -117,12 +123,12 @@ def getModel():
 
 	#Dense Layers
 	gmodel.add(Dense(512))
-	gmodel.add(Activation('elu'))
+	gmodel.add(Activation('relu'))
 	gmodel.add(Dropout(dropoutRate))
 
 	#Dense Layer 2
 	gmodel.add(Dense(256))
-	gmodel.add(Activation('elu'))
+	gmodel.add(Activation('relu'))
 	gmodel.add(Dropout(dropoutRate))
 
 	#Sigmoid Layer
@@ -140,12 +146,16 @@ def getModel():
 def get_callbacks(filepath, patience=2):
 	es = EarlyStopping('val_loss', patience=patience, mode="min")
 	msave = ModelCheckpoint(filepath, save_best_only=True)
-	return [es, msave]
+	# step_size = 2-8 x # of training iterations in an epoch = 2 * 113 = 226
+	clr = CyclicLR(base_lr=0.001, max_lr=0.006, step_size=230., mode='exp_range', gamma=0.99994) # initial step_size = 2000
+	return [es, msave, clr]
 		
 file_path = ".model_weights_imgproc.hdf5"
 callbacks = get_callbacks(filepath=file_path, patience=5)
 
 Y_train = train['is_iceberg']	
+Y_train = Y_train[idx_meaningful[0]]
+
 X_train_cv, X_valid, Y_train_cv, Y_valid = train_test_split(X_train, Y_train, random_state=1, train_size=0.75)
 
 Xtr_more = get_more_images(X_train_cv) 
