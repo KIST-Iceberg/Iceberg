@@ -3,6 +3,7 @@
 # -*- encoding: UTF-8 -*-
 
 import numpy as np
+import json
 import pandas as pd
 import tensorflow as tf
 import datetime
@@ -17,8 +18,8 @@ plt.rcParams['figure.figsize'] = 10, 10
 #%matplotlib inline
 
 #Load the data.
-train = pd.read_json("/input/train.json")
-test  = pd.read_json("/input/test.json")
+train = pd.read_json('/home/mike2ox/Iceberg/input/train.json')
+test = pd.read_json('/home/mike2ox/Iceberg/input/test.json')
 
 #Generate the training data
 #Create 3 bands having HH, HV and avg of both
@@ -32,7 +33,7 @@ X_band_2=np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in
 Test = np.concatenate([X_band_1[:, :, :, np.newaxis], X_band_2[:, :, :, np.newaxis],((X_band_1+X_band_2)/2)[:, :, :, np.newaxis]], axis=-1)
 
 is_iceberg_train = train['is_iceberg']
-ID = test['ID']
+ID = test['id']
 
 #Import Keras.
 from matplotlib import pyplot
@@ -48,7 +49,7 @@ def var_summary(name, var):
 
 
 # Building the model
-# HH, HV, avg로 총 3가지
+# HH, HV, avg
 X = tf.placeholder(tf.float32, [None, 75, 75, 3])
 Y = tf.placeholder(tf.float32, [None, 1])
 keep_prob = tf.placeholder(tf.float32)
@@ -93,7 +94,7 @@ L4 = tf.nn.dropout(L4, keep_prob)
 # FC Layer1
 W5 = tf.Variable(tf.random_normal([3 * 3 * 512, 512], stddev=0.02))
 L5 = tf.reshape(L4, [-1, 3 * 3 * 512])
-L5 = tf.matmul(L5, W5) # TODO : 이부분이 필요한가? 그냥 reshape만 해서 나와도 되지 않나?
+L5 = tf.matmul(L5, W5)
 L5 = tf.nn.relu(L5)
 L5 = tf.nn.dropout(L5, keep_prob)
 
@@ -115,20 +116,19 @@ def next_batch(num, data, labels):
     '''
     Return a total of `num` random samples and labels.
     '''
-    idx = np.arange(0 , len(data))
+    idx = np.arange(0, len(data))
     np.random.shuffle(idx)
     idx = idx[:num]
-    data_shuffle = [data[ i] for i in idx]
-    labels_shuffle = [labels[ i] for i in idx]
+    data_shuffle = [data[i] for i in idx]
+    # Todo : KeyError: 167 occur
+    labels_shuffle = [labels[i] for i in idx]
 
     return np.asarray(data_shuffle), np.asarray(labels_shuffle)
 
 #########
-# 신경망 모델 학습
+
 
 with tf.Session() as sess:
-
-    # random_state : 이전 raondom하게 split한 값들의 그룹명? 느낌으로 값 자체에는 의미가 없음
     X_train_cv, X_test, is_ceberg_cv, is_iceberg_test = train_test_split(X_train, is_iceberg_train, random_state=1, train_size=0.75)
 
     batch_size = 24
@@ -145,17 +145,27 @@ with tf.Session() as sess:
     else:
         sess.run(tf.global_variables_initializer())
 
-    for epoch in range():
+    for epoch in range(30):
         total_loss = 0
 
         for a in range(total_batch):
              batch_xs, batch_ys = next_batch(batch_size, X_train_cv, is_ceberg_cv)
              _, acc, loss_val = sess.run([optimizer, loss],
-                                        feed_dict={X:X_train_cv,
-                                                   Y:is_ceberg_cv,
+                                        feed_dict={X:batch_xs,
+                                                   Y:batch_ys,
                                                    keep_prob:0.2})
              total_loss += loss_val
         print('Epoch:', '%04d' % (epoch + 1),
               'Avg. loss =', '{:.3f}'.format(total_loss / total_batch))
 
     saver.save(sess, 'tmp/Iceberg_model.ckpt')
+
+    is_correct = tf.equal(tf.argmax(model, 1), tf.argmax(Y, 1))
+    test_accuracy = tf.reduce_mean(tf.cast(is_correct, tf.float32))
+    test_loss = tf.reduce_mean(tf.cast(loss, tf.float32))
+
+
+    print('test_loss :', sess.run(test_loss,
+                                  feed_dict={X:X_test,
+                                             Y:is_iceberg_test,
+                                             keep_prob: 1}))
