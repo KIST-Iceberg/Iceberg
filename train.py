@@ -42,8 +42,8 @@ def train():
     print('Start')
     with tf.Session() as sess:
         merged = tf.summary.merge_all()
-        name = 'lr{}_ep{}_b{}_{}'.format(learning_rate, total_epoch, batch_size, str(time.ctime))
-        train_writer = tf.summary.FileWriter('./log/train/{}'.format(name, sess.graph))
+        name = 'lr{}_ep{}_b{}_{}'.format(learning_rate, total_epoch, batch_size, time.ctime())
+        train_writer = tf.summary.FileWriter('./log/train/{}'.format(name), sess.graph)
         tf.global_variables_initializer().run()
 
         total_batch = inputs.total_batch
