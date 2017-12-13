@@ -3,6 +3,14 @@
 import tensorflow as tf
 
 
+def var_summary(var):
+    tf.summary.histogram('histogram', var)
+    mean = tf.reduce_mean(var)
+    tf.summary.scalar('mean', mean)
+    stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+    tf.summary.scalar('stddev', stddev)
+
+
 def conv2d(inputs, filters, ksize, strides, padding, activation, keep_prob, name, is_deconv=False):
     """ make a deconv layer
 
@@ -33,6 +41,8 @@ def conv2d(inputs, filters, ksize, strides, padding, activation, keep_prob, name
             layer = activation(layer)
         droped = tf.layers.dropout(layer, rate=keep_prob)
 
+        var_summary(droped)
+
     return droped
 
 
@@ -58,6 +68,7 @@ def make_conv_layers(inputs, filters, ksizes, strieds, paddings, activations, ke
         layer_name = 'deconv_'
 
     next_inputs = inputs
+    print('input: ' + str(next_inputs.shape))
 
     # make layers
     for layer_num in range(len(filters)):
@@ -70,6 +81,7 @@ def make_conv_layers(inputs, filters, ksizes, strieds, paddings, activations, ke
                              keep_prob=keep_probs[layer_num],
                              name=layer_name + str(layer_num),
                              is_deconv=is_deconv)
+        print("conv_" + str(layer_num)+': ' + str(next_inputs.shape))
 
     return next_inputs
 
@@ -91,6 +103,9 @@ def dense(inputs, out_dim, activation, keep_prob, name):
         if activation is not None:
             layer = activation(layer)
         droped = tf.layers.dropout(layer, keep_prob)
+
+        var_summary(droped)
+
         return droped
 
 
@@ -107,12 +122,15 @@ def make_dense_layer(inputs, out_dims, activations, keep_probs):
     """
 
     next_inputs = inputs
+    print('input: ' + str(next_inputs.shape))
+
     for layer_num in range(len(out_dims)):
         next_inputs = dense(inputs,
                             out_dim=out_dims[layer_num],
                             activation=activations[layer_num],
                             keep_prob=keep_probs[layer_num],
                             name='dense_'+str(layer_num))
+        print("dense_" + str(layer_num) + ': ' + str(next_inputs.shape))
 
     return next_inputs
 

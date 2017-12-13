@@ -5,9 +5,9 @@ import layers
 
 # model parameter
 # super resolution
-sr_filters = [64, 32, 3]
+sr_filters = [32, 128, 3]
 sr_ksizes = [[9, 9], [5, 5], [5, 5]]
-sr_strides = [[2, 2], [2, 2], [2, 2]]
+sr_strides = [[1, 1], [2, 2], [1, 1]]
 sr_paddings = ['SAME', 'SAME', 'SAME']
 sr_activations = [tf.nn.relu, tf.nn.relu, tf.nn.relu]
 sr_keep_probs = [0.9, 0.9, 0.9]
@@ -15,9 +15,9 @@ sr_keep_probs = [0.9, 0.9, 0.9]
 # conv layer
 # 75 36 18 9 5
 cv_filters = [64, 128, 128, 64]
-cv_ksizes = [[4, 4], [3, 3], [3, 3], [2, 2]]
-cv_strides = [[2, 2], [2, 2], [2, 2], [2, 2]]
-cv_paddings = ['VALID', 'SAME', 'SAME', 'VALID']
+cv_ksizes = [[5, 5], [3, 3], [3, 3], [3, 3]]
+cv_strides = [[4, 4], [2, 2], [2, 2], [2, 2]]
+cv_paddings = ['SAME', 'SAME', 'SAME', 'SAME']
 cv_activations = [tf.nn.relu, tf.nn.relu, tf.nn.relu, tf.nn.relu]
 cv_keep_probs = [0.9, 0.9, 0.9, 0.9]
 
@@ -25,7 +25,7 @@ cv_keep_probs = [0.9, 0.9, 0.9, 0.9]
 rs_size = [-1, 5 * 5 * 64]
 
 # dense layer
-ds_out_dims = [512, 256, 1]
+ds_out_dims = [512, 256, 2]
 ds_activations = [tf.nn.relu, tf.nn.relu, tf.nn.relu]
 ds_keep_probs = [0.9, 0.9, 0.9]
 
@@ -72,12 +72,15 @@ def make_model(X, Y, learning_rate):
                                             activations=ds_activations,
                                             keep_probs=ds_keep_probs)
 
+    ouput = ds_layers
+
     with tf.name_scope('matrices'):
         with tf.name_scope('xent'):
-            xent = tf.reduce_mean(tf.nn.sparse_softmax_cross_entropy_with_logits(labels=Y, logits=ds_layers))
+            xent = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(labels=Y, logits=ouput))
         with tf.name_scope('optimizer'):
             optimizer = tf.train.AdamOptimizer(learning_rate).minimize(xent)
         with tf.name_scope('accuracy'):
-            accuracy = tf.reduce_mean(tf.case(tf.equal(Y, ds_layers), tf.float32))
+            correct = tf.equal(tf.argmax(ouput, 1), tf.argmax(Y, 1))
+            accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
 
     return ds_layers, xent, optimizer, accuracy
