@@ -9,19 +9,16 @@ import time
 
 # Hyper-parameters
 learning_rate = 1e-4
-total_epoch = 1000
-batch_size = 50
+total_epoch = 30
+batch_size = 30
+
+name = '{}_lr{}_ep{}_b{}'.format(time.ctime(), learning_rate, total_epoch, batch_size)
+log_path = './log/train/' + name
 
 x, y = data_input.load_data()
 inputs = data_input.get_dataset(batch_size, x, y)
 
-
-def var_summary(var):
-    tf.summary.histogram('histogram', var)
-    mean = tf.reduce_mean(var)
-    tf.summary.scalar('mean', mean)
-    stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-    tf.summary.scalar('stddev', stddev)
+saver = tf.train.Saver()
 
 
 def train():
@@ -29,17 +26,13 @@ def train():
         X = tf.placeholder(tf.float32, [None, 75, 75, 3])
         Y = tf.placeholder(tf.int32, [None, 2])
 
-    model, xent, optimizer, accuracy = model_conv.make_model(X, Y, learning_rate)
+    model, xent, optimizer, accuracy = model_sr.make_model(X, Y, learning_rate)
 
-    with tf.name_scope('matrices'):
-        tf.summary.scalar('xent', xent)
-        tf.summary.scalar('accuracy', accuracy)
-
-    print('Start')
+    print('Train Start')
     with tf.Session() as sess:
         merged = tf.summary.merge_all()
-        name = 'lr{}_ep{}_b{}_{}'.format(learning_rate, total_epoch, batch_size, time.ctime())
-        train_writer = tf.summary.FileWriter('./log/train/{}'.format(name), sess.graph)
+
+        train_writer = tf.summary.FileWriter(log_path, sess.graph)
         tf.global_variables_initializer().run()
 
         total_batch = inputs.total_batch
@@ -64,7 +57,16 @@ def train():
             epoch_acc = epoch_acc / total_batch
             print('EP: {:05d}, loss: {:0.5f}, acc: {:0.5f}'.format(epoch, epoch_loss, epoch_acc))
 
-    print('Finish')
+        # model save
+        saver.save(sess, log_path+'/model.ckpt')
+
+    print('Train Finish')
+
+
+def test():
+    with tf.name_scope('input'):
+        X = tf.placeholder(tf.float32, [None, 75, 75, 3])
+        Y = tf.placeholder(tf.int32, [None, 2])
 
 
 if __name__ == '__main__':
