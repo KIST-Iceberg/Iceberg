@@ -3,11 +3,12 @@
 import tensorflow as tf
 
 import model_sr
+import model_conv
 import data_input
 import time
 
 # Hyper-parameters
-learning_rate = 3e-2
+learning_rate = 1e-3
 total_epoch = 10000
 batch_size = 50
 
@@ -27,18 +28,11 @@ def train():
         X = tf.placeholder(tf.float32, [None, 75, 75, 3])
         Y = tf.placeholder(tf.int32, [None, 2])
 
-    model, xent, optimizer, accuracy = model_sr.make_model(X, Y, learning_rate)
+    model, xent, optimizer, accuracy = model_conv.make_model(X, Y, learning_rate)
+
     with tf.name_scope('matrices'):
         tf.summary.scalar('xent', xent)
         tf.summary.scalar('accuracy', accuracy)
-
-    # vars_super_resolution = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='super_resolution')
-    # vars_convolution = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='convolution')
-    # vars_dense = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='dense')
-    #
-    # for vars in [vars_super_resolution, vars_convolution, vars_dense]:
-    #     for var in vars:
-    #         var_summary(var)
 
     print('Start')
     with tf.Session() as sess:

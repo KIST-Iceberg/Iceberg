@@ -67,7 +67,7 @@ def make_conv_layers(inputs, filters, ksizes, strieds, paddings, activations, ke
     if is_deconv:
         layer_name = 'deconv_'
 
-    next_inputs = inputs
+    next_inputs = tf.layers.batch_normalization(inputs)
     print('input: ' + str(next_inputs.shape))
 
     # make layers
@@ -121,7 +121,7 @@ def make_dense_layer(inputs, out_dims, activations, keep_probs):
                 layer: dense layers
     """
 
-    next_inputs = inputs
+    next_inputs = tf.layers.batch_normalization(inputs)
     print('input: ' + str(next_inputs.shape))
 
     for layer_num in range(len(out_dims)):
