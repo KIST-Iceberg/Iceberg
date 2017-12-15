@@ -125,7 +125,7 @@ def make_dense_layer(inputs, out_dims, activations, keep_probs):
     print('input: ' + str(next_inputs.shape))
 
     for layer_num in range(len(out_dims)):
-        next_inputs = dense(inputs,
+        next_inputs = dense(next_inputs,
                             out_dim=out_dims[layer_num],
                             activation=activations[layer_num],
                             keep_prob=keep_probs[layer_num],

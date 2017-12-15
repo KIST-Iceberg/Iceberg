@@ -7,8 +7,8 @@ import data_input
 import time
 
 # Hyper-parameters
-learning_rate = 1e-4
-total_epoch = 1000
+learning_rate = 3e-2
+total_epoch = 10000
 batch_size = 50
 
 inputs = data_input.get_dataset(batch_size)
@@ -28,8 +28,9 @@ def train():
         Y = tf.placeholder(tf.int32, [None, 2])
 
     model, xent, optimizer, accuracy = model_sr.make_model(X, Y, learning_rate)
-    tf.summary.scalar('xent', xent)
-    tf.summary.scalar('accuracy', accuracy)
+    with tf.name_scope('matrices'):
+        tf.summary.scalar('xent', xent)
+        tf.summary.scalar('accuracy', accuracy)
 
     # vars_super_resolution = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='super_resolution')
     # vars_convolution = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='convolution')
