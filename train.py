@@ -8,11 +8,12 @@ import data_input
 import time
 
 # Hyper-parameters
-learning_rate = 1e-3
-total_epoch = 10000
+learning_rate = 1e-4
+total_epoch = 1000
 batch_size = 50
 
-inputs = data_input.get_dataset(batch_size)
+x, y = data_input.load_data()
+inputs = data_input.get_dataset(batch_size, x, y)
 
 
 def var_summary(var):
