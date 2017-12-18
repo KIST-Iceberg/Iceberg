@@ -3,6 +3,8 @@
 # -*- encoding: UTF-8 -*-
 
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 import json
 import pandas as pd
 import tensorflow as tf
@@ -11,6 +13,7 @@ import datetime
 from sklearn.model_selection import train_test_split
 from os.path import join as opj
 from matplotlib import pyplot as plt
+
 from mpl_toolkits.mplot3d import Axes3D
 
 import pylab
@@ -25,8 +28,9 @@ test = pd.read_json('/home/mike2ox/Iceberg/input/test.json')
 #Create 3 bands having HH, HV and avg of both
 X_band_1 = np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in train["band_1"]])
 X_band_2 = np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in train["band_2"]])
+
 # HH, HV, avg value
-X_train  = np.concatenate([X_band_1[:, :, :, np.newaxis], X_band_2[:, :, :, np.newaxis],((X_band_1+X_band_2)/2)[:, :, :, np.newaxis]], axis=-1)
+X_train = np.concatenate([X_band_1[:, :, :, np.newaxis], X_band_2[:, :, :, np.newaxis],((X_band_1+X_band_2)/2)[:, :, :, np.newaxis]], axis=-1)
 
 X_band_1=np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in test["band_1"]])
 X_band_2=np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in test["band_2"]])
@@ -34,9 +38,6 @@ Test = np.concatenate([X_band_1[:, :, :, np.newaxis], X_band_2[:, :, :, np.newax
 
 is_iceberg_train = train['is_iceberg']
 ID = test['id']
-
-#Import Keras.
-from matplotlib import pyplot
 
 # tensorboard
 def var_summary(name, var):
@@ -46,7 +47,6 @@ def var_summary(name, var):
         tf.summary.scalar('stddev', stddev)
         tf.summary.scalar('mean', mean)
         tf.summary.histogram('histogram', var)
-
 
 # Building the model
 # HH, HV, avg
@@ -61,7 +61,7 @@ b1 = tf.get_variable('b1', [64], initializer=tf.truncated_normal_initializer(std
 L1 = tf.nn.conv2d(input=X, filter=W1, strides=[1, 1, 1, 1], padding='VALID')
 L1 = L1 + b1
 L1 = tf.nn.relu(L1)
-L1 = tf.nn.max_pool(L1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='VALID')
+L1 = tf.nn.max_pool(L1, ksize=[1, 2, 2, 1], strides=[1, 2, 2, 1], padding='SAME')
 L1 = tf.nn.dropout(L1, keep_prob)
 
 # Conv Layer 2
@@ -112,27 +112,43 @@ model = tf.nn.sigmoid(L7)
 loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=model, labels=Y))
 optimizer = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08). minimize(loss)
 
-def next_batch(num, data, labels):
+def next_batch(batch_s, data, labels):
     '''
     Return a total of `num` random samples and labels.
     '''
     idx = np.arange(0, len(data))
     np.random.shuffle(idx)
-    idx = idx[:num]
+    idx = idx[:batch_s]
+
+    # for dim_4 in range(3):
     data_shuffle = [data[i] for i in idx]
     # Todo : KeyError: 167 occur
     labels_shuffle = [labels[i] for i in idx]
+    # labels_shuffle[np.newaxis, :]
+    labels = np.array(labels_shuffle).reshape(-1,1)
+    # print(np.shape(labels))
+    # data_shuffle = np.transpose(data_shuffle, (2, 1, 0))
+    # data_shuffle = np.reshape(data_shuffle, (-1, 75, 75, 3))
+    # labels_shuffle = np.array(labels_shuffle)
+    # labels_shuffle = one_hot(labels_shuffle, 2)
+    return data_shuffle, labels
 
-    return np.asarray(data_shuffle), np.asarray(labels_shuffle)
+def one_hot(arr, depth):
+    arr = np.array(arr).reshape(-1).astype(int)
+    hot = np.eye(depth)[arr]
+    return hot
 
 #########
-
-
 with tf.Session() as sess:
-    X_train_cv, X_test, is_ceberg_cv, is_iceberg_test = train_test_split(X_train, is_iceberg_train, random_state=1, train_size=0.75)
+    # divide train set(75% : train, 25% : test)
+    # if random state == int, this can guarantee that the output of Run 1 will be equal to the output of Run 2,
+    # X_train_cv, X_test, is_iceberg_cv, is_iceberg_test = train_test_split(X_train, is_iceberg_train, random_state=1, train_size=0.75)
+    # print(float(len(X_train_cv)), "/", float(len(X_test)), "/", int(len(is_iceberg_cv)),"/", int(len(is_iceberg_test)))
 
-    batch_size = 24
-    total_batch = int(len(X_train_cv)/batch_size)
+    batch_size = 30
+    total_batch = int(len(X_train)/batch_size)
+
+    # number of layers
     n_conv2d = 4
     n_fc = 2
     log_dir = ("tensorboard/n_L:%d c_FC:%d time:" % (n_conv2d, n_fc) + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
@@ -145,12 +161,17 @@ with tf.Session() as sess:
     else:
         sess.run(tf.global_variables_initializer())
 
+    # epoch once -> entity data set once
     for epoch in range(30):
         total_loss = 0
 
-        for a in range(total_batch):
-             batch_xs, batch_ys = next_batch(batch_size, X_train_cv, is_ceberg_cv)
-             _, acc, loss_val = sess.run([optimizer, loss],
+        # total_batch * batch_size = number of entity data set
+        # number of data set : 1604 (X_train_cv: 1203, X_test: 401)
+        for a in range(total_batch+1):
+             batch_xs, batch_ys = next_batch(batch_size, X_train, is_iceberg_train)
+             # batch_xs = batch_xs.reshape(-1, 75, 75, 3)
+             # ValueError: not enough values to unpack (expected 3, got 2) --> run으로 들어갈 값과 결과값의 갯수가 다를경우
+             _, loss_val = sess.run([optimizer, loss],
                                         feed_dict={X:batch_xs,
                                                    Y:batch_ys,
                                                    keep_prob:0.2})
@@ -164,8 +185,7 @@ with tf.Session() as sess:
     test_accuracy = tf.reduce_mean(tf.cast(is_correct, tf.float32))
     test_loss = tf.reduce_mean(tf.cast(loss, tf.float32))
 
-
     print('test_loss :', sess.run(test_loss,
-                                  feed_dict={X:X_test,
-                                             Y:is_iceberg_test,
+                                  feed_dict={X: Test,
+                                             Y: ID,
                                              keep_prob: 1}))
