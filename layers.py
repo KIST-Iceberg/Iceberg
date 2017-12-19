@@ -46,7 +46,7 @@ def conv2d(inputs, filters, ksize, strides, padding, activation, keep_prob, name
     return droped
 
 
-def make_conv_layers(inputs, filters, ksizes, strieds, paddings, activations, keep_probs, is_deconv=False):
+def make_conv_layers(inputs, filters, ksizes, strieds, paddings, activations, keep_prob, is_deconv=False):
     """ Make conv Layers
 
         Args:
@@ -56,7 +56,7 @@ def make_conv_layers(inputs, filters, ksizes, strieds, paddings, activations, ke
             strieds: lists of strieds or a list of strides, 2-dim int list
             paddings: list of padding or a padding, 'SAME' or 'VALID'
             activations: list of activation or a activation, function
-            keep_probs: list of keep_prob or a keep_prob, float
+            keep_prob: list of keep_prob or a keep_prob, float
             is_deconv: if True use tf.layers.conv2d_transpose else tf.layers.conv2d, default: False
 
         Return:
@@ -78,7 +78,7 @@ def make_conv_layers(inputs, filters, ksizes, strieds, paddings, activations, ke
                              strides=strieds[layer_num],
                              padding=paddings[layer_num],
                              activation=activations[layer_num],
-                             keep_prob=keep_probs[layer_num],
+                             keep_prob=keep_prob,
                              name=layer_name + str(layer_num),
                              is_deconv=is_deconv)
         print("conv_" + str(layer_num)+': ' + str(next_inputs.shape))
@@ -109,7 +109,7 @@ def dense(inputs, out_dim, activation, keep_prob, name):
         return droped
 
 
-def make_dense_layer(inputs, out_dims, activations, keep_probs):
+def make_dense_layer(inputs, out_dims, activations, keep_prob):
     """ dense layer
             Args:
                 inputs: tensor
@@ -128,7 +128,7 @@ def make_dense_layer(inputs, out_dims, activations, keep_probs):
         next_inputs = dense(next_inputs,
                             out_dim=out_dims[layer_num],
                             activation=activations[layer_num],
-                            keep_prob=keep_probs[layer_num],
+                            keep_prob=keep_prob,
                             name='dense_'+str(layer_num))
         print("dense_" + str(layer_num) + ': ' + str(next_inputs.shape))
 
