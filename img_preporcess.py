@@ -7,19 +7,9 @@ import pickle
 import data_input
 
 
-origin_path = data_input.origin_path
-pp_x_path = data_input.pp_x_path
-pp_label_path = data_input.pp_label_path
-
-# load the data set
-train = pd.read_json(origin_path)
-# test = pd.read_json(test_path)
-
-
 # generate the training data
 # create 3 bands having HH, HV and avg of both
-def gen_new_data(data_list):
-
+def gen_new_data(data_list, is_flip=False):
     def get_more_images(imgs):
         more_images = []
         vert_flip_imgs = []
@@ -66,12 +56,12 @@ def gen_new_data(data_list):
         return img_back
 
     # Generate the training data
-    train.inc_angle = train.inc_angle.replace('na', 0)
-    idx_meaningful = np.where(train.inc_angle > 0)
+    data_list.inc_angle = data_list.inc_angle.replace('na', 0)
+    idx_meaningful = np.where(data_list.inc_angle > 0)
 
     # Create 3 bands having HH, HV and avg of both
-    X_band_1 = np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in train["band_1"]])
-    X_band_2 = np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in train["band_2"]])
+    X_band_1 = np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in data_list["band_1"]])
+    X_band_2 = np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in data_list["band_2"]])
     X_band_3 = np.array([np.multiply(abs(X_band_1[i, :, :]), abs(X_band_2[i, :, :])) for i in range(len(X_band_1))])
 
     # Apply GetHigh
@@ -89,18 +79,30 @@ def gen_new_data(data_list):
     Y_train = Y_train[idx_meaningful[0]]
 
     # Flips
-    X = get_more_images(X_train)
-    Y = np.concatenate((Y_train, Y_train, Y_train))
+    if is_flip:
+        X_train = get_more_images(X_train)
+        Y_train = np.concatenate((Y_train, Y_train, Y_train))
 
-    Y = np.eye(2)[np.asarray(Y)]
+    # one hot
+    Y_train = np.eye(2)[np.asarray(Y_train)]
 
-    return X, Y
+    # index
+    index = data_list['id']
+
+    return X_train, Y_train, index
 
 
 if __name__ == '__main__':
+    # load the data set
+    train = pd.read_json(data_input.origin_path)
+    # test = pd.read_json(data_input.test_path)
+
     # train
-    train_x, train_label = gen_new_data(train)
+    x, label, idx = gen_new_data(train, is_flip=True)
     # d_test = gen_new_data(test)
 
-    pickle.dump(train_x, open(pp_x_path, 'wb'))
-    pickle.dump(train_label, open(pp_label_path, 'wb'))
+    pickle.dump(x, open(data_input.pp_x_path, 'wb'))
+    pickle.dump(label, open(data_input.pp_label_path, 'wb'))
+    pickle.dump(idx, open(data_input.pp_idx_path, 'wb'))
+    # pickle.dump(x, open(data_input.pp_test_path, 'wb'))
+    # pickle.dump(idx, open(data_input.pp_test_idx_path, 'wb'))
