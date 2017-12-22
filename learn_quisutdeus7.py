@@ -29,13 +29,23 @@ test = pd.read_json('/home/mike2ox/Iceberg/input/test.json')
 with tf.name_scope("concate_train_test"):
     X_band_1 = np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in train["band_1"]])
     X_band_2 = np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in train["band_2"]])
+    X_band_3 = (X_band_1+X_band_2)/2
+    a = (X_band_1 - X_band_1.mean()) / (X_band_1.max() - X_band_1.min())
+    b = (X_band_2 - X_band_2.mean()) / (X_band_1.max() - X_band_2.min())
+    c = (X_band_3 - X_band_3.mean()) / (X_band_3.max() - X_band_3.min())
+
     # HH, HV, avg value
-    X_train = np.concatenate([X_band_1[:, :, :, np.newaxis], X_band_2[:, :, :, np.newaxis],((X_band_1+X_band_2)/2)[:, :, :, np.newaxis]], axis=-1)
+    X_train = np.concatenate([a[:, :, :, np.newaxis], b[:, :, :, np.newaxis], c[:, :, :, np.newaxis]], axis=-1)
     image_xtrain =  np.reshape(X_band_1, [-1, 75,75,1])
     tf.summary.image('X_train', image_xtrain, max_outputs= 5)
 
     X_band_1=np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in test["band_1"]])
     X_band_2=np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in test["band_2"]])
+    X_band_3 = (X_band_1+X_band_2)/2
+    a = (X_band_1 - X_band_1.mean()) / (X_band_1.max() - X_band_1.min())
+    b = (X_band_2 - X_band_2.mean()) / (X_band_1.max() - X_band_2.min())
+    c = (X_band_3 - X_band_3.mean()) / (X_band_3.max() - X_band_3.min())
+
     Test = np.concatenate([X_band_1[:, :, :, np.newaxis], X_band_2[:, :, :, np.newaxis],((X_band_1+X_band_2)/2)[:, :, :, np.newaxis]], axis=-1)
     n_test = np.reshape(Test, [-1,75,75,1])
     tf.summary.image('Test', Test, 5)
@@ -136,13 +146,10 @@ def next_batch(batch_s, data, labels):
     idx = np.arange(0, len(data))
     np.random.shuffle(idx)
     idx = idx[:batch_s]
-    labels.shape
-    labels = np.array(labels)
-    labels.shape
+    labels = np.reshape(labels, [-1,1])
     # for dim_4 in range(3):
     data_shuffle = [data[i] for i in idx]
     labels_shuffle = [labels[i] for i in idx]
-    labels_shuffle = np.reshape(labels_shuffle, [-1, 1])
 
     # labels_shuffle[np.newaxis, :]
     labels = np.array(labels_shuffle)
@@ -195,7 +202,7 @@ with tf.Session() as sess:
              summary, _, loss_val = sess.run([merged, optimizer, loss],
                                         feed_dict={X:batch_xs,
                                                    Y:batch_ys,
-                                                   keep_prob:0.2})
+                                                   keep_prob:0.8})
              writer.add_summary(summary)
              total_loss += loss_val
         print('Epoch:', '%04d' % (epoch + 1),
