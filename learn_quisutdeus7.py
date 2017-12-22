@@ -1,7 +1,7 @@
 ##!/usr/bin/python
 # Original code from https://goo.gl/9MJAZS
 # -*- encoding: UTF-8 -*-
-
+import cv2
 import numpy as np
 import matplotlib
 matplotlib.use('Agg')
@@ -53,6 +53,33 @@ with tf.name_scope("concate_train_test"):
 is_iceberg_train = train['is_iceberg']
 ID = test['id']
 
+
+def get_more_images(imgs):
+    more_images = []
+    vert_flip_imgs = []
+    hori_flip_imgs = []
+
+    for i in range(0, imgs.shape[0]):
+        a = imgs[i, :, :, 0]
+        b = imgs[i, :, :, 1]
+        c = imgs[i, :, :, 2]
+
+        av = cv2.flip(a, 1)
+        ah = cv2.flip(a, 0)
+        bv = cv2.flip(b, 1)
+        bh = cv2.flip(b, 0)
+        cv = cv2.flip(c, 1)
+        ch = cv2.flip(c, 0)
+
+        vert_flip_imgs.append(np.dstack((av, bv, cv)))
+        hori_flip_imgs.append(np.dstack((ah, bh, ch)))
+
+    v = np.array(vert_flip_imgs)
+    h = np.array(hori_flip_imgs)
+
+    more_images = np.concatenate((imgs, v, h))
+
+    return more_images
 
 # Building the model
 # HH, HV, avg
