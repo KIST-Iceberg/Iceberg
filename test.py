@@ -3,7 +3,7 @@
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-import data_input
+from data import data_input
 from sklearn.metrics import log_loss
 
 # hyper parameter

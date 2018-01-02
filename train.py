@@ -3,7 +3,7 @@
 import tensorflow as tf
 
 from models import model_cnn_parallel
-import data_input
+from data import data_input
 import time
 
 # Hyper-parameters

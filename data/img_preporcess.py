@@ -4,7 +4,7 @@ import pandas as pd
 import numpy as np
 import cv2
 import pickle
-import data_input
+from data import data_input
 
 
 # generate the training data

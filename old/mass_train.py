@@ -2,7 +2,7 @@
 
 import tensorflow as tf
 
-import data_input
+from data import data_input
 import time
 
 # Hyper-parameters
