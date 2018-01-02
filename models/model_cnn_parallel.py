@@ -4,29 +4,6 @@ import layers
 
 
 def make_model(X, Y, keep_prob, learning_rate):
-    # SR
-    # with tf.name_scope('deconv'):
-    #     deconv1 = layers.conv2d(X,
-    #                             filters=32,
-    #                             ksize=[3, 3],
-    #                             strides=[1, 1],
-    #                             padding='SAME',
-    #                             activation=tf.nn.relu,
-    #                             keep_prob=keep_prob,
-    #                             name='deconv2d',
-    #                             is_deconv=True)
-    #     print('deconv1', deconv1.shape)
-    #
-    #     deconv2 = layers.conv2d(deconv1,
-    #                             filters=64,
-    #                             ksize=[5, 5],
-    #                             strides=[2, 2],
-    #                             padding='VALID',
-    #                             activation=tf.nn.relu,
-    #                             keep_prob=keep_prob,
-    #                             name='deconv2d',
-    #                             is_deconv=True)
-    #     print('deconv2', deconv2.shape)
 
     with tf.name_scope('conv'):
 

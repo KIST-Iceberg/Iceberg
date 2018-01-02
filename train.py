@@ -1,10 +1,8 @@
 # Copy Right Kairos03 2017. All Right Reserved.
 
 import tensorflow as tf
-import numpy as np
 
-import model_sr
-import model_sr_parallel
+from models import model_cnn_parallel
 import data_input
 import time
 
@@ -32,7 +30,7 @@ def train(is_valid):
         Y = tf.placeholder(tf.float32, [None, 2], name='Y')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-    model, xent, optimizer, accuracy = model_sr_parallel.make_model(X, Y, keep_prob, learning_rate)
+    model, xent, optimizer, accuracy = model_cnn_parallel.make_model(X, Y, keep_prob, learning_rate)
 
     print('Train Start')
 
