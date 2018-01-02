@@ -5,22 +5,22 @@ import layers
 
 # model parameter
 # super resolution
-sr_filters = [128, 512]
+sr_filters = [128, 256]
 sr_ksizes = [[3, 3], [5, 5]]
-sr_strides = [[1, 1], [2, 2]]
-sr_paddings = ['SAME', 'SAME']
+sr_strides = [[1, 1], [1, 1]]
+sr_paddings = ['Valid', 'Valid']
 sr_activations = [tf.nn.relu, tf.nn.relu]
 
 # conv layer
 # 75 36 18 9 5
-cv_filters = [512, 256, 128]
-cv_ksizes = [[5, 5], [5, 5], [3, 3]]
-cv_strides = [[4, 4], [4, 4], [2, 2]]
-cv_paddings = ['SAME', 'SAME', 'SAME']
-cv_activations = [tf.nn.relu, tf.nn.relu, tf.nn.relu]
+cv_filters = [512, 1024, 512, 256, 128]
+cv_ksizes = [[1, 1], [5, 5], [3, 3], [3, 3], [3, 3]]
+cv_strides = [[2, 2], [2, 2], [2, 2], [2, 2], [2, 2]]
+cv_paddings = ['SAME', 'Valid', 'SAME', 'SAME', 'SAME']
+cv_activations = [tf.nn.relu, tf.nn.relu, tf.nn.relu, tf.nn.relu, tf.nn.relu]
 
 # reshape
-rs_size = [-1, 5 * 5 * 128]
+rs_size = [-1, 3 * 3 * 128]
 
 # dense layer
 ds_out_dims = [512, 64, 2]

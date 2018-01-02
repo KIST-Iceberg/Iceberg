@@ -36,7 +36,8 @@ def conv2d(inputs, filters, ksize, strides, padding, activation, keep_prob, name
 
     # make layer
     with tf.name_scope(name):
-        layer = layer_method(inputs, filters=filters, kernel_size=ksize, strides=strides, padding=padding)
+        batch_norm = tf.layers.batch_normalization(inputs)
+        layer = layer_method(batch_norm, filters=filters, kernel_size=ksize, strides=strides, padding=padding)
         if activation is not None:
             layer = activation(layer)
         droped = tf.layers.dropout(layer, rate=keep_prob)
@@ -67,7 +68,7 @@ def make_conv_layers(inputs, filters, ksizes, strieds, paddings, activations, ke
     if is_deconv:
         layer_name = 'deconv_'
 
-    next_inputs = tf.layers.batch_normalization(inputs)
+    next_inputs = inputs
     print('input: ' + str(next_inputs.shape))
 
     # make layers
@@ -81,7 +82,7 @@ def make_conv_layers(inputs, filters, ksizes, strieds, paddings, activations, ke
                              keep_prob=keep_prob,
                              name=layer_name + str(layer_num),
                              is_deconv=is_deconv)
-        print("conv_" + str(layer_num)+': ' + str(next_inputs.shape))
+        print("conv_" + str(layer_num) + ': ' + str(next_inputs.shape))
 
     return next_inputs
 
@@ -99,7 +100,8 @@ def dense(inputs, out_dim, activation, keep_prob, name):
             layer: dense layer
     """
     with tf.name_scope(name):
-        layer = tf.layers.dense(inputs, out_dim)
+        batch_norm = tf.layers.batch_normalization(inputs)
+        layer = tf.layers.dense(batch_norm, out_dim)
         if activation is not None:
             layer = activation(layer)
         droped = tf.layers.dropout(layer, keep_prob)
@@ -121,7 +123,7 @@ def make_dense_layer(inputs, out_dims, activations, keep_prob):
                 layer: dense layers
     """
 
-    next_inputs = tf.layers.batch_normalization(inputs)
+    next_inputs = inputs
     print('input: ' + str(next_inputs.shape))
 
     for layer_num in range(len(out_dims)):
@@ -129,8 +131,49 @@ def make_dense_layer(inputs, out_dims, activations, keep_prob):
                             out_dim=out_dims[layer_num],
                             activation=activations[layer_num],
                             keep_prob=keep_prob,
-                            name='dense_'+str(layer_num))
+                            name='dense_' + str(layer_num))
         print("dense_" + str(layer_num) + ': ' + str(next_inputs.shape))
 
     return next_inputs
+
+
+def conv_cell(inputs, filters, strides, keep_prob):
+
+    activations = tf.nn.relu
+
+    with tf.name_scope('conv_cell'):
+
+        with tf.name_scope('1_by_1'):
+            # 1x1
+            one = conv2d(inputs,
+                         filters,
+                         ksize=[1, 1],
+                         strides=strides,
+                         padding='SAME',
+                         activation=activations,
+                         keep_prob=keep_prob,
+                         name='1x1')
+
+        with tf.name_scope('3_by_3'):
+            three = conv2d(inputs,
+                           filters,
+                           ksize=[3, 3],
+                           strides=strides,
+                           padding='SAME',
+                           activation=activations,
+                           keep_prob=keep_prob,
+                           name='3x3')
+
+        with tf.name_scope('5_by_5'):
+            five = conv2d(inputs,
+                          filters,
+                          ksize=[5, 5],
+                          strides=strides,
+                          padding='SAME',
+                          activation=activations,
+                          keep_prob=keep_prob,
+                          name='1x1')
+
+    result = tf.concat([one, three, five], axis=3)
+    return result
 

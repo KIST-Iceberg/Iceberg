@@ -4,20 +4,22 @@ import tensorflow as tf
 import numpy as np
 
 import model_sr
+import model_sr_parallel
 import data_input
 import time
 
 # Hyper-parameters
 learning_rate = 1e-4
-total_epoch = 10
+total_epoch = 30
 batch_size = 30
-dropout_kp = 0.5
+dropout_kp = 0.2
 
 current = time.time()
 
 name = '{}_lr{}_ep{}_b{}'.format(time.ctime(), learning_rate, total_epoch, batch_size)
-log_path = './log/train/' + name + '/'
-model_path = log_path + 'model.ckpt'
+log_train_path = './log/' + name + '/train/'
+log_test_path = './log/' + name + '/test/'
+model_path = log_train_path + 'model.ckpt'
 
 
 def train(is_valid):
@@ -30,7 +32,7 @@ def train(is_valid):
         Y = tf.placeholder(tf.float32, [None, 2], name='Y')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-    model, xent, optimizer, accuracy = model_sr.make_model(X, Y, keep_prob, learning_rate)
+    model, xent, optimizer, accuracy = model_sr_parallel.make_model(X, Y, keep_prob, learning_rate)
 
     print('Train Start')
 
@@ -38,10 +40,12 @@ def train(is_valid):
         saver = tf.train.Saver()
         merged = tf.summary.merge_all()
 
-        train_writer = tf.summary.FileWriter(log_path, sess.graph)
+        train_writer = tf.summary.FileWriter(log_train_path, sess.graph)
+        test_writer = tf.summary.FileWriter(log_test_path)
         tf.global_variables_initializer().run()
 
         total_batch = inputs.total_batch
+        valid_total_batch = inputs.valid_total_batch
 
         for epoch in range(total_epoch):
 
@@ -50,6 +54,8 @@ def train(is_valid):
 
             for batch_num in range(total_batch):
                 xs, ys = inputs.next_batch()
+
+                tf.summary.image('input', xs)
 
                 _, loss, acc = sess.run([optimizer, xent, accuracy],
                                         feed_dict={X: xs, Y: ys, keep_prob: dropout_kp})
@@ -61,8 +67,29 @@ def train(is_valid):
 
             epoch_loss = epoch_loss / total_batch
             epoch_acc = epoch_acc / total_batch
-            print('[{}] EP: {:05d}, loss: {:0.5f}, acc: {:0.5f}'
-                  .format(time.time()-current, epoch, epoch_loss, epoch_acc))
+            print('[{:05.3f}] EP: {:05d}, loss: {:0.5f}, acc: {:0.5f}'
+                  .format(time.time() - current, epoch, epoch_loss, epoch_acc))
+
+            # valid
+            if is_valid:
+
+                epoch_acc = 0
+                xs = ys = None
+
+                for batch_num in range(valid_total_batch):
+                    xs, ys = inputs.next_batch(valid_set=True)
+
+                    acc = sess.run(accuracy,
+                                   feed_dict={X: xs, Y: ys, keep_prob: 1})
+
+                    epoch_acc += acc
+
+                summary = sess.run(merged, feed_dict={X: xs, Y: ys, keep_prob: 1})
+                test_writer.add_summary(summary, epoch)
+
+                epoch_acc = epoch_acc / valid_total_batch
+                print('[{:05.3f}] VALID EP: {:05d}, acc: {:0.5f}'
+                      .format(time.time() - current, epoch, epoch_acc))
 
         # model save
         saver.save(sess, model_path)
@@ -72,5 +99,3 @@ def train(is_valid):
 
 if __name__ == '__main__':
     train(is_valid=True)
-
-
