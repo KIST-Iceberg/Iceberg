@@ -1,9 +1,10 @@
 # Copyright kairos03, dalbom. All Right Reserved.
 
+import pickle
+
 import numpy as np
 import pandas as pd
 import cv2
-import pickle
 
 
 ROOT_PATH = 'data/processed/'
@@ -129,12 +130,13 @@ def rotate_img(images, labels, angles):
     return rotated_images, rotated_labels, rotated_angles
 
 
-def flip_image(images, labels, angles):
+def flip_image(images, labels, angles, direction='both'):
     """
     Flip vertical and horizontal
     :param images: images, ndarray
     :param labels: images labels
     :param angels: images angels
+    :param direction: dirrection to flip, one of these 'both', 'vertical' 'horizontal'
     :return flipped_images, ndarray
     :return flipped_labels: augmented label
     :return flipped_angels: augmented angel
@@ -143,6 +145,7 @@ def flip_image(images, labels, angles):
     assert type(images) == np.ndarray
     assert images.shape[0] == labels.shape[0]
     assert images.shape[0] == angles.shape[0]
+    assert direction in ['both', 'vertical', 'horizontal']
 
     flipped_images = []
     flipped_labels = []
@@ -150,10 +153,16 @@ def flip_image(images, labels, angles):
 
     for i in range(images.shape[0]):
 
-        fh = cv2.flip(images[i], 0)
-        fv = cv2.flip(images[i], 1)
+        items = [images[i]]
 
-        for item in [images[i], fh, fv]:
+        if direction == 'both' or direction == 'vertical':
+            fh = cv2.flip(images[i], 0)
+            items.append(fh)
+        if direction == 'both' or direction == 'horizontal':
+            fv = cv2.flip(images[i], 1)
+            items.append(fv)
+
+        for item in items:
             flipped_images.append(item)
             flipped_labels.append(labels[i])
             flipped_angles.append(angles[i])
@@ -249,7 +258,7 @@ if __name__ == '__main__':
     print("Rotated", rotated.shape)
 
     # flip
-    fliped, labels, angles = flip_image(filtered, labels, angles)
+    fliped, labels, angles = flip_image(filtered, labels, angles, direction='vertical')
     print("Flipped", fliped.shape)
 
     # save to pickle
