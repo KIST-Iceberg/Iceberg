@@ -1,10 +1,15 @@
 # Copy Right Kairos03 2017. All Right Reserved.
 
+from __future__ import absolute_import
+
+import time
+
 import tensorflow as tf
+import numpy as np
 
 from models import model_cnn_parallel
+from data import process
 from data import data_input
-import time
 
 # Hyper-parameters
 learning_rate = 1e-4
@@ -22,15 +27,20 @@ model_path = log_train_path + 'model.ckpt'
 
 def train(is_valid):
     # data set load
-    x, y, idx = data_input.load_data()
-    inputs = data_input.get_dataset(batch_size, x, y, is_shuffle=True, is_valid=is_valid)
+    x, y, angle = process.load_from_pickle()
+
+    y = data_input.one_hot(y)
+    angle = np.reshape(angle, [-1,1])
+
+    inputs = data_input.get_dataset(batch_size, x, y, angle, is_shuffle=True, is_valid=is_valid)
 
     with tf.name_scope('input'):
         X = tf.placeholder(tf.float32, [None, 75, 75, 3], name='X')
         Y = tf.placeholder(tf.float32, [None, 2], name='Y')
+        A = tf.placeholder(tf.float32, [None, 1], name='A')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-    model, xent, optimizer, accuracy = model_cnn_parallel.make_model(X, Y, keep_prob, learning_rate)
+    model, xent, optimizer, accuracy = model_cnn_parallel.make_model(X, Y, A, keep_prob, learning_rate)
 
     print('Train Start')
 
@@ -51,16 +61,16 @@ def train(is_valid):
             xs = ys = None
 
             for batch_num in range(total_batch):
-                xs, ys = inputs.next_batch()
+                xs, ys, ans = inputs.next_batch(valid_set=False)
 
                 tf.summary.image('input', xs)
 
                 _, loss, acc = sess.run([optimizer, xent, accuracy],
-                                        feed_dict={X: xs, Y: ys, keep_prob: dropout_kp})
+                                        feed_dict={X: xs, Y: ys, A: ans, keep_prob: dropout_kp})
                 epoch_loss += loss
                 epoch_acc += acc
 
-            summary = sess.run(merged, feed_dict={X: xs, Y: ys, keep_prob: dropout_kp})
+            summary = sess.run(merged, feed_dict={X: xs, Y: ys, A: ans, keep_prob: dropout_kp})
             train_writer.add_summary(summary, epoch)
 
             epoch_loss = epoch_loss / total_batch
@@ -75,14 +85,14 @@ def train(is_valid):
                 xs = ys = None
 
                 for batch_num in range(valid_total_batch):
-                    xs, ys = inputs.next_batch(valid_set=True)
+                    xs, ys, ans = inputs.next_batch(valid_set=True)
 
                     acc = sess.run(accuracy,
-                                   feed_dict={X: xs, Y: ys, keep_prob: 1})
+                                   feed_dict={X: xs, Y: ys, A: ans, keep_prob: 1})
 
                     epoch_acc += acc
 
-                summary = sess.run(merged, feed_dict={X: xs, Y: ys, keep_prob: 1})
+                summary = sess.run(merged, feed_dict={X: xs, Y: ys, A: ans, keep_prob: 1})
                 test_writer.add_summary(summary, epoch)
 
                 epoch_acc = epoch_acc / valid_total_batch

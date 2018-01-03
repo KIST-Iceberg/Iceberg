@@ -1,9 +1,15 @@
+"""
+Copyright kairos03. All Right Reserved.
+
+Multi cell cnn model
+
+@ this model is too complex to presenting Iceberg dataset so always overfitted.
+"""
 import tensorflow as tf
-import numpy as np
 import layers
 
 
-def make_model(X, Y, keep_prob, learning_rate):
+def make_model(X, Y, angle, keep_prob, learning_rate):
 
     with tf.name_scope('conv'):
 
@@ -38,12 +44,15 @@ def make_model(X, Y, keep_prob, learning_rate):
         max_pool2 = tf.layers.max_pooling2d(conv4, pool_size=[2, 2], strides=[2, 2], padding='SAME')
         print('max_pool2', max_pool2.shape)
 
-    with tf.name_scope('reshape'):
+    with tf.name_scope('reshape_and_add_angle'):
         reshape = tf.reshape(max_pool2, [-1, 2 * 2 * 768])
         print('reshape', reshape.shape)
+        print('angle', angle.shape)
+        add_angel = tf.concat([reshape, angle], 1)
+        print('add_angel', add_angel.shape)
 
     with tf.name_scope('dense'):
-        dense1 = layers.dense(reshape, 1024, tf.nn.relu, keep_prob, name='dense')
+        dense1 = layers.dense(add_angel, 1024, tf.nn.relu, keep_prob, name='dense')
         print('dense1', dense1.shape)
         dense2 = layers.dense(dense1, 256, tf.nn.relu, keep_prob, name='dense')
         print('dense2', dense2.shape)
