@@ -1,9 +1,10 @@
 # Copy Right Kairos03 2017. All Right Reserved.
-
 import tensorflow as tf
 
 
 def var_summary(var):
+    """ weight variable summary
+    """
     tf.summary.histogram('histogram', var)
     mean = tf.reduce_mean(var)
     tf.summary.scalar('mean', mean)
