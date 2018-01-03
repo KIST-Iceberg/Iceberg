@@ -204,11 +204,11 @@ def save_to_pickle(images, labels, angles):
     if PROCESSED_PATH[:-1] not in os.listdir(DATA_PATH):
         os.makedirs(PROCESSED_PATH[:-1])
 
-    pickle.dump(images, open(ROOT_PATH + IMAGE_PATH, 'wb'))
+    pickle.dump(images, open(ROOT_PATH + IMAGE_PATH, 'wb'), protocol=4)
     print("IMAGE DUMPED", ROOT_PATH + IMAGE_PATH)
-    pickle.dump(labels, open(ROOT_PATH + LABEL_PATH, 'wb'))
+    pickle.dump(labels, open(ROOT_PATH + LABEL_PATH, 'wb'), protocol=4)
     print("LABEL DUMPED", ROOT_PATH + LABEL_PATH)
-    pickle.dump(angles, open(ROOT_PATH + ANGLE_PATH, 'wb'))
+    pickle.dump(angles, open(ROOT_PATH + ANGLE_PATH, 'wb'), protocol=4)
     print("ANGEL DUMPED", ROOT_PATH + ANGLE_PATH)
     print("Data ALL Saved.")
 
