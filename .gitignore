@@ -7,6 +7,12 @@
 processed
 origin
 
+# log 
+log
+
+# vscode
+.vscode
+
 # .idea
 .idea/
 
