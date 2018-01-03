@@ -327,9 +327,9 @@ def main():  # TODO Train, Test 받아서 처리 하도록 TODO load, save 처�
 
     # load from pickle
     i, l, a = load_from_pickle()
-    print('image', i)
-    print('label', l)
-    print('angle', a)
+    print('image', i, i.shape)
+    print('label', l, l.shape)
+    print('angle', a, a.shape)
 
     print("Data Processing Done.")
 
