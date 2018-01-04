@@ -305,8 +305,8 @@ def argumentate_data(images, labels, angles):
     print("Rotated.", images.shape)
 
     # flip
-    images, labels, angles = flip_image(images, labels, angles, direction='vertical')
-    print("Flipped.", images.shape)
+    # images, labels, angles = flip_image(images, labels, angles, direction='vertical')
+    # print("Flipped.", images.shape)
 
     return images, labels, angles
 

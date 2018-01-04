@@ -12,10 +12,10 @@ from data import process
 from data import data_input
 
 # Hyper-parameters
-LEARNING_RATE = 1e-4
-TOTAL_EPOCH = 30
-BATCH_SIZE = 30
-DROPOUT_RATE = 0.2
+LEARNING_RATE = 1e-3
+TOTAL_EPOCH = 150
+BATCH_SIZE = 500
+DROPOUT_RATE = 0.9
 
 CURRENT = time.time()
 
@@ -24,7 +24,6 @@ SESSION_NAME = '{}_lr{}_ep{}_b{}'.format(
 LOG_TRAIN_PATH = './log/' + SESSION_NAME + '/train/'
 LOG_TEST_PATH = './log/' + SESSION_NAME + '/test/'
 MODEL_PATH = LOG_TRAIN_PATH + 'model.ckpt'
-
 
 def train(is_valid):
     # data set load
@@ -50,6 +49,7 @@ def train(is_valid):
     with tf.Session() as sess:
         saver = tf.train.Saver()
         merged = tf.summary.merge_all()
+        last_time = CURRENT
 
         train_writer = tf.summary.FileWriter(LOG_TRAIN_PATH, sess.graph)
         test_writer = tf.summary.FileWriter(LOG_TEST_PATH)
@@ -66,12 +66,15 @@ def train(is_valid):
             for batch_num in range(total_batch):
                 xs, ys, ans = inputs.next_batch(valid_set=False)
 
-                tf.summary.image('input', xs)
-
                 _, loss, acc = sess.run([optimizer, xent, accuracy],
                                         feed_dict={X: xs, Y: ys, A: ans, keep_prob: DROPOUT_RATE})
                 epoch_loss += loss
                 epoch_acc += acc
+
+                # display time spend for 20 batch
+                # if batch_num % 20 == 0:
+                #     print("[{:05.3f}] Batch {} finish.".format(time.time() - last_time, batch_num))
+                #     last_time = time.time()
 
             summary = sess.run(merged,
                                feed_dict={X: xs, Y: ys, A: ans, keep_prob: DROPOUT_RATE})
@@ -79,8 +82,9 @@ def train(is_valid):
 
             epoch_loss = epoch_loss / total_batch
             epoch_acc = epoch_acc / total_batch
-            print('[{:05.3f}] EP: {:05d}, loss: {:0.5f}, acc: {:0.5f}'
-                  .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc))
+            if epoch % 10 == 9 or epoch == 0: 
+                print('[{:05.3f}] EP: {:05d}, loss: {:0.5f}, acc: {:0.5f}'
+                    .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc))
 
             # valid
             if is_valid:
@@ -101,8 +105,9 @@ def train(is_valid):
                 test_writer.add_summary(summary, epoch)
 
                 epoch_acc = epoch_acc / valid_total_batch
-                print('[{:05.3f}] VALID EP: {:05d}, acc: {:0.5f}'
-                      .format(time.time() - CURRENT, epoch, epoch_acc))
+                if epoch % 10 == 9 or epoch == 0: 
+                    print('[{:05.3f}] VALID EP: {:05d}, acc: {:0.5f}'
+                        .format(time.time() - CURRENT, epoch, epoch_acc))
 
         # model save
         saver.save(sess, MODEL_PATH)
