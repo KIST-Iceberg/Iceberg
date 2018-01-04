@@ -6,4 +6,4 @@ import test
 
 if __name__ == '__main__':
     train.train(is_valid=True)
-    test.test(train.log_train_path, is_valid=True)
+    test.test(train.LOG_TRAIN_PATH, is_valid=True)

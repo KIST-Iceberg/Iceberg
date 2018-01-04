@@ -7,22 +7,23 @@ import time
 import tensorflow as tf
 import numpy as np
 
-from models import model_cnn_parallel
+from models import conv2_mp2_dense1
 from data import process
 from data import data_input
 
 # Hyper-parameters
-learning_rate = 1e-4
-total_epoch = 30
-batch_size = 30
-dropout_kp = 0.2
+LEARNING_RATE = 1e-4
+TOTAL_EPOCH = 30
+BATCH_SIZE = 30
+DROPOUT_RATE = 0.2
 
-current = time.time()
+CURRENT = time.time()
 
-name = '{}_lr{}_ep{}_b{}'.format(time.ctime(), learning_rate, total_epoch, batch_size)
-log_train_path = './log/' + name + '/train/'
-log_test_path = './log/' + name + '/test/'
-model_path = log_train_path + 'model.ckpt'
+SESSION_NAME = '{}_lr{}_ep{}_b{}'.format(
+    time.ctime(), LEARNING_RATE, TOTAL_EPOCH, BATCH_SIZE)
+LOG_TRAIN_PATH = './log/' + SESSION_NAME + '/train/'
+LOG_TEST_PATH = './log/' + SESSION_NAME + '/test/'
+MODEL_PATH = LOG_TRAIN_PATH + 'model.ckpt'
 
 
 def train(is_valid):
@@ -30,9 +31,10 @@ def train(is_valid):
     x, y, angle = process.load_from_pickle()
 
     y = data_input.one_hot(y)
-    angle = np.reshape(angle, [-1,1])
+    angle = np.reshape(angle, [-1, 1])
 
-    inputs = data_input.get_dataset(batch_size, x, y, angle, is_shuffle=True, is_valid=is_valid)
+    inputs = data_input.get_dataset(
+        BATCH_SIZE, x, y, angle, is_shuffle=True, is_valid=is_valid)
 
     with tf.name_scope('input'):
         X = tf.placeholder(tf.float32, [None, 75, 75, 3], name='X')
@@ -40,7 +42,8 @@ def train(is_valid):
         A = tf.placeholder(tf.float32, [None, 1], name='A')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-    model, xent, optimizer, accuracy = model_cnn_parallel.make_model(X, Y, A, keep_prob, learning_rate)
+    model, xent, optimizer, accuracy = conv2_mp2_dense1.make_model(
+        X, Y, A, keep_prob, LEARNING_RATE, 0.01)
 
     print('Train Start')
 
@@ -48,14 +51,14 @@ def train(is_valid):
         saver = tf.train.Saver()
         merged = tf.summary.merge_all()
 
-        train_writer = tf.summary.FileWriter(log_train_path, sess.graph)
-        test_writer = tf.summary.FileWriter(log_test_path)
+        train_writer = tf.summary.FileWriter(LOG_TRAIN_PATH, sess.graph)
+        test_writer = tf.summary.FileWriter(LOG_TEST_PATH)
         tf.global_variables_initializer().run()
 
         total_batch = inputs.total_batch
         valid_total_batch = inputs.valid_total_batch
 
-        for epoch in range(total_epoch):
+        for epoch in range(TOTAL_EPOCH):
 
             epoch_loss = epoch_acc = 0
             xs = ys = None
@@ -66,17 +69,18 @@ def train(is_valid):
                 tf.summary.image('input', xs)
 
                 _, loss, acc = sess.run([optimizer, xent, accuracy],
-                                        feed_dict={X: xs, Y: ys, A: ans, keep_prob: dropout_kp})
+                                        feed_dict={X: xs, Y: ys, A: ans, keep_prob: DROPOUT_RATE})
                 epoch_loss += loss
                 epoch_acc += acc
 
-            summary = sess.run(merged, feed_dict={X: xs, Y: ys, A: ans, keep_prob: dropout_kp})
+            summary = sess.run(merged,
+                               feed_dict={X: xs, Y: ys, A: ans, keep_prob: DROPOUT_RATE})
             train_writer.add_summary(summary, epoch)
 
             epoch_loss = epoch_loss / total_batch
             epoch_acc = epoch_acc / total_batch
             print('[{:05.3f}] EP: {:05d}, loss: {:0.5f}, acc: {:0.5f}'
-                  .format(time.time() - current, epoch, epoch_loss, epoch_acc))
+                  .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc))
 
             # valid
             if is_valid:
@@ -92,15 +96,16 @@ def train(is_valid):
 
                     epoch_acc += acc
 
-                summary = sess.run(merged, feed_dict={X: xs, Y: ys, A: ans, keep_prob: 1})
+                summary = sess.run(merged,
+                                   feed_dict={X: xs, Y: ys, A: ans, keep_prob: 1})
                 test_writer.add_summary(summary, epoch)
 
                 epoch_acc = epoch_acc / valid_total_batch
                 print('[{:05.3f}] VALID EP: {:05d}, acc: {:0.5f}'
-                      .format(time.time() - current, epoch, epoch_acc))
+                      .format(time.time() - CURRENT, epoch, epoch_acc))
 
         # model save
-        saver.save(sess, model_path)
+        saver.save(sess, MODEL_PATH)
 
     print('Train Finish')
 
