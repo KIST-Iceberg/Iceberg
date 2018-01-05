@@ -1,7 +1,5 @@
 # Copy Right Kairos03 2017. All Right Reserved.
 
-from __future__ import absolute_import
-
 import numpy as np
 import pickle
 from sklearn.model_selection import train_test_split
@@ -117,24 +115,16 @@ def load_test():
     return pickle.load(open(pp_test_path, 'rb')), pickle.load(open(pp_test_idx_path, 'rb'))
 
 
-def one_hot(data, classes=2):
-    # one hot
-    one_hot_data = np.eye(classes)[np.asarray(data)]
-    assert one_hot_data.shape[-1] == classes
-    return one_hot_data
-
 if __name__ == '__main__':
 
     # deprecated
     # x, y, idx = load_data()
 
     x, y, angle = process.load_from_pickle()
-    y = one_hot(y)
-    angle = np.reshape(angle, [-1,1])
 
     print('y', y.shape)
     print('angle', angle.shape)
-    dd = get_dataset(30, x, y, angle, is_shuffle=False, is_valid=True)
+    dd = get_dataset(600, x, y, angle, is_shuffle=False, is_valid=True)
 
     print(dd.valid_data.shape)
     print(dd.data.shape)

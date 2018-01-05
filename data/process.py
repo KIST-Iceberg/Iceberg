@@ -9,9 +9,13 @@ import pickle
 import numpy as np
 import pandas as pd
 import cv2
+from scipy.ndimage.filters import uniform_filter
+from scipy.ndimage.measurements import variance
 
 DATA_PATH = 'data/'
 PROCESSED_PATH = 'processed/'
+TRAIN_PATH = 'train/'
+TEST_PATH = 'test/'
 ROOT_PATH = DATA_PATH + PROCESSED_PATH
 IMAGE_PATH = 'image.pkl'
 LABEL_PATH = 'label.pkl'
@@ -40,7 +44,8 @@ def gen_combined_channel(images):
     assert new_img.shape[3] == 3
 
     # value check
-    assert new_img[3, 2, 1, 2] == np.multiply(abs(images[3, 2, 1, 0]), abs(images[3, 2, 1, 1]))
+    assert new_img[3, 2, 1, 2] == np.multiply(
+        abs(images[3, 2, 1, 0]), abs(images[3, 2, 1, 1]))
 
     return new_img
 
@@ -71,11 +76,36 @@ def high_filter_and_gamma_correction(images, length=1):
         img_back = np.power(img_back, 2)
 
     img_back = (img_back - np.mean(img_back)) / np.std(img_back)
-    img_back = (img_back - np.min(img_back)) / (np.max(img_back) - np.min(img_back))
+    img_back = (img_back - np.min(img_back)) / \
+        (np.max(img_back) - np.min(img_back))
 
     assert images.shape == img_back.shape
 
     return img_back
+
+
+def lee_filter(images, size=75):
+    """
+    lee filter
+
+    :param images: images, must be square
+    :param size: images width or heigh size
+    """
+    result = []
+    for img in images:
+        # img = images[i, :, :, :]
+        img_mean = uniform_filter(img, (size, size, 3))
+        img_sqr_mean = uniform_filter(img**2, (size, size, 3))
+        img_variance = img_sqr_mean - img_mean**2
+
+        overall_variance = variance(img)
+
+        img_weights = img_variance**2 / (img_variance**2 + overall_variance**2)
+        img_output = img_mean + img_weights * (img - img_mean)
+
+        result.append(img_output)
+
+    return np.stack(result)
 
 
 def rotate_img(images, labels, angles):
@@ -129,8 +159,8 @@ def rotate_img(images, labels, angles):
     assert rotated_labels.size == labels.size * 12
 
     # image, label match check
-    assert rotated_labels[128] == labels[128 // 12]
-    assert rotated_angles[456] == angles[456 // 12]
+    assert rotated_labels[128].all() == labels[128 // 12].all()
+    assert rotated_angles[456].all() == angles[456 // 12].all()
 
     return rotated_images, rotated_labels, rotated_angles
 
@@ -191,51 +221,48 @@ def flip_image(images, labels, angles, direction='both'):
     return flipped_images, flipped_labels, flipped_angels
 
 
-def save_to_pickle(images, labels, angles):
+def save_to_pickle(images, labels, angles, is_test=False):
     """
     Make pickle from each data
 
     :param images: images, ndarray dims like [number of images, width, height, channel]
     :param labels: lagels of images
     :param angles: angles of iamges
+    :param is_test: if True save test set, else save train set
     """
+    # select path
+    path = ROOT_PATH + TEST_PATH if is_test else ROOT_PATH + TRAIN_PATH
 
-    # directory check
-    if PROCESSED_PATH[:-1] not in os.listdir(DATA_PATH):
-        os.makedirs(PROCESSED_PATH[:-1])
+    pickle.dump(images, open(path + IMAGE_PATH, 'wb'), protocol=4)
+    print("IMAGE DUMPED", path + IMAGE_PATH)
+    pickle.dump(labels, open(path + LABEL_PATH, 'wb'), protocol=4)
+    print("LABEL DUMPED", path + LABEL_PATH)
+    pickle.dump(angles, open(path + ANGLE_PATH, 'wb'), protocol=4)
+    print("ANGEL DUMPED", path + ANGLE_PATH)
 
-    pickle.dump(images, open(ROOT_PATH + IMAGE_PATH, 'wb'), protocol=4)
-    print("IMAGE DUMPED", ROOT_PATH + IMAGE_PATH)
-    pickle.dump(labels, open(ROOT_PATH + LABEL_PATH, 'wb'), protocol=4)
-    print("LABEL DUMPED", ROOT_PATH + LABEL_PATH)
-    pickle.dump(angles, open(ROOT_PATH + ANGLE_PATH, 'wb'), protocol=4)
-    print("ANGEL DUMPED", ROOT_PATH + ANGLE_PATH)
-    print("Data ALL Saved.")
 
-def load_from_pickle():
+def load_from_pickle(is_test=False):
     """
     Load pickle data of image, label, angel
 
+    :param is_test: if True load test set, else load train set
+
     :return: images, labels, angels data; ndarray
     """
+    # select path
+    path = ROOT_PATH + TEST_PATH if is_test else ROOT_PATH + TRAIN_PATH
 
-    # file check
-    flist = os.listdir(ROOT_PATH)
-    if not set([IMAGE_PATH, LABEL_PATH, ANGLE_PATH]).issubset(flist):
-        raise FileNotFoundError
-
-    images = pickle.load(open(ROOT_PATH + IMAGE_PATH, 'rb'))
-    print("IMAGE LOADED", ROOT_PATH + IMAGE_PATH)
-    labels = pickle.load(open(ROOT_PATH + LABEL_PATH, 'rb'))
-    print("LABEL LOADED", ROOT_PATH + LABEL_PATH)
-    angles = pickle.load(open(ROOT_PATH + ANGLE_PATH, 'rb'))
-    print("ANGLE LOADED", ROOT_PATH + ANGLE_PATH)
-    print("Data ALL Loaded.")
+    images = pickle.load(open(path + IMAGE_PATH, 'rb'))
+    print("IMAGE LOADED", path + IMAGE_PATH)
+    labels = pickle.load(open(path + LABEL_PATH, 'rb'))
+    print("LABEL LOADED", path + LABEL_PATH)
+    angles = pickle.load(open(path + ANGLE_PATH, 'rb'))
+    print("ANGLE LOADED", path + ANGLE_PATH)
 
     return images, labels, angles
 
 
-def pre_process_data():  # TODO Train, Test로 나눠서 가능하도록 변경
+def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하도록 변경
     """
     Data Pre-Process
 
@@ -247,14 +274,15 @@ def pre_process_data():  # TODO Train, Test로 나눠서 가능하도록 변경
     :returns: processed image, labels, angles
     """
     # load origin data frame
-    train = pd.read_json("data/origin/train.json")
+    data = pd.read_json(
+        "data/origin/test.json") if is_test else pd.read_json("data/origin/train.json")
     print("Origin Data Loaded.")
 
     # make list to ndarray
     img_dict = {}
 
     for band in ["band_1", "band_2"]:
-        samples = train.loc[:, band].values
+        samples = data.loc[:, band].values
         for i in range(samples.size):
             samples[i] = np.reshape(samples[i], (75, 75))
 
@@ -263,16 +291,16 @@ def pre_process_data():  # TODO Train, Test로 나눠서 가능하도록 변경
     origin_images = np.stack((img_dict["band_1"], img_dict["band_2"]), axis=3)
 
     # convert check
-    assert origin_images[720, 64, 32, 0] == train.loc[720, "band_1"][64, 32]
-    assert origin_images[123, 6, 71, 1] == train.loc[123, "band_2"][6, 71]
-    assert origin_images[123, 6, 71, 1] != train.loc[123, "band_1"][6, 71]
+    assert origin_images[720, 64, 32, 0] == data.loc[720, "band_1"][64, 32]
+    assert origin_images[123, 6, 71, 1] == data.loc[123, "band_2"][6, 71]
+    assert origin_images[123, 6, 71, 1] != data.loc[123, "band_1"][6, 71]
     print("Image to Numpy Done.")
 
     # labels
-    labels = train.is_iceberg.values
+    labels = np.zeros(origin_images.shape[0], dtype=int) if is_test else data.is_iceberg.values
 
     # angles
-    angles = train.inc_angle.values
+    angles = data.inc_angle.values
     # convert 'na' to 0.0
     angles = np.asarray([angle if angle != 'na' else 0.0 for angle in angles])
 
@@ -281,8 +309,20 @@ def pre_process_data():  # TODO Train, Test로 나눠서 가능하도록 변경
     print("Combined.", combined.shape)
 
     # pass high filter
-    filtered = high_filter_and_gamma_correction(combined)
+    # filtered = high_filter_and_gamma_correction(combined)
+
+    # lee filter
+    filtered = lee_filter(combined)
     print("Filtered.", filtered.shape)
+
+    def one_hot(data, classes=2):
+        """ one hot """
+        one_hot_data = np.eye(classes)[data]
+        assert one_hot_data.shape[-1] == classes
+        return one_hot_data
+
+    labels = one_hot(labels)
+    angles = np.reshape(angles, [-1, 1])
 
     return filtered, labels, angles
 
@@ -311,27 +351,31 @@ def argumentate_data(images, labels, angles):
     return images, labels, angles
 
 
-def main():  # TODO Train, Test 받아서 처리 하도록 TODO load, save 처리
+def main(is_test=False):
     print("Data Processing Start")
 
     # data pre-processing
     print("Pre-Processing Start")
-    images, labels, angles = pre_process_data()
+    images, labels, angles = pre_process_data(is_test)
 
     # data argumentation
-    print('Argumentation Start')
-    images, labels, angles = argumentate_data(images, labels, angles)
+    if not is_test:
+        print('Argumentation Start')
+        images, labels, angles = argumentate_data(images, labels, angles)
 
     # save to pickle
-    save_to_pickle(images, labels, angles)
+    save_to_pickle(images, labels, angles, is_test=is_test)
 
     # load from pickle
-    i, l, a = load_from_pickle()
+    i, l, a = load_from_pickle(is_test=is_test)
     print('image', i, i.shape)
     print('label', l, l.shape)
     print('angle', a, a.shape)
 
     print("Data Processing Done.")
 
+
 if __name__ == '__main__':
-    main()
+    # main(is_test=False)
+    main(is_test=True)
+    

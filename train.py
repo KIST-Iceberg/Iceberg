@@ -13,9 +13,10 @@ from data import data_input
 
 # Hyper-parameters
 LEARNING_RATE = 1e-3
-TOTAL_EPOCH = 150
-BATCH_SIZE = 500
-DROPOUT_RATE = 0.9
+TOTAL_EPOCH = 500
+BATCH_SIZE = 600
+DROPOUT_RATE = 0.2
+REGULARIZATION_BETA = 1e-3
 
 CURRENT = time.time()
 
@@ -29,9 +30,6 @@ def train(is_valid):
     # data set load
     x, y, angle = process.load_from_pickle()
 
-    y = data_input.one_hot(y)
-    angle = np.reshape(angle, [-1, 1])
-
     inputs = data_input.get_dataset(
         BATCH_SIZE, x, y, angle, is_shuffle=True, is_valid=is_valid)
 
@@ -42,21 +40,22 @@ def train(is_valid):
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     model, xent, optimizer, accuracy = conv2_mp2_dense1.make_model(
-        X, Y, A, keep_prob, LEARNING_RATE, 0.01)
+        X, Y, A, keep_prob, LEARNING_RATE, REGULARIZATION_BETA)
 
     print('Train Start')
 
     with tf.Session() as sess:
         saver = tf.train.Saver()
         merged = tf.summary.merge_all()
-        last_time = CURRENT
+        # last_time = CURRENT
 
         train_writer = tf.summary.FileWriter(LOG_TRAIN_PATH, sess.graph)
         test_writer = tf.summary.FileWriter(LOG_TEST_PATH)
         tf.global_variables_initializer().run()
 
         total_batch = inputs.total_batch
-        valid_total_batch = inputs.valid_total_batch
+        if is_valid:
+            valid_total_batch = inputs.valid_total_batch
 
         for epoch in range(TOTAL_EPOCH):
 
@@ -82,7 +81,7 @@ def train(is_valid):
 
             epoch_loss = epoch_loss / total_batch
             epoch_acc = epoch_acc / total_batch
-            if epoch % 10 == 9 or epoch == 0: 
+            if epoch % 20 == 9 or epoch == 0: 
                 print('[{:05.3f}] EP: {:05d}, loss: {:0.5f}, acc: {:0.5f}'
                     .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc))
 
@@ -105,7 +104,7 @@ def train(is_valid):
                 test_writer.add_summary(summary, epoch)
 
                 epoch_acc = epoch_acc / valid_total_batch
-                if epoch % 10 == 9 or epoch == 0: 
+                if epoch % 20 == 9 or epoch == 0: 
                     print('[{:05.3f}] VALID EP: {:05d}, acc: {:0.5f}'
                         .format(time.time() - CURRENT, epoch, epoch_acc))
 
@@ -117,3 +116,4 @@ def train(is_valid):
 
 if __name__ == '__main__':
     train(is_valid=True)
+    # train(is_valid=False)

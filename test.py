@@ -3,24 +3,22 @@
 import tensorflow as tf
 import numpy as np
 import pandas as pd
-from data import data_input
 from sklearn.metrics import log_loss
 
+from data import data_input
+from data import process
+import train
+
 # hyper parameter
-batch_size = 30
+BATCH_SIZE = train.BATCH_SIZE
 
 
-def test(model_path, is_valid=False):
+def test(model_path, is_test=False):
     with tf.Graph().as_default() as graph:
         # data set load
-        if is_valid:
-            x, y, idx = data_input.load_data()
-            inputs = data_input.get_dataset(batch_size, x, y, is_shuffle=False, is_valid=True)
-            total_batch = inputs.valid_total_batch
-        else:
-            x, idx = data_input.load_test()
-            inputs = data_input.get_dataset(batch_size, x, np.zeros(x.shape[0]), is_shuffle=False, is_valid=False)
-            total_batch = inputs.total_batch
+        x, y, angle = process.load_from_pickle(is_test=is_test)
+        inputs = data_input.get_dataset(BATCH_SIZE, x, y, angle, is_shuffle=False, is_valid=False)
+        total_batch = inputs.total_batch if is_test else inputs.valid_total_batch
 
         print('Test Start')
 
@@ -34,12 +32,13 @@ def test(model_path, is_valid=False):
 
             X = graph.get_tensor_by_name('input/X:0')
             Y = graph.get_tensor_by_name('input/Y:0')
+            A = graph.get_tensor_by_name('input/A:0')
             keep_prob = graph.get_tensor_by_name('input/keep_prob:0')
 
             # load Variables and ops
-            probability = sess.graph.get_tensor_by_name('matrices/proba/proba:0')
-            accuracy = sess.graph.get_tensor_by_name('matrices/accuracy/accuracy:0')
-            xent = sess.graph.get_tensor_by_name('matrices/xent/xent:0')
+            probability = sess.graph.get_tensor_by_name('matrices/proba:0')
+            accuracy = sess.graph.get_tensor_by_name('matrices/accuracy:0')
+            xent = sess.graph.get_tensor_by_name('matrices/xent:0')
 
             total_predict = None
             total_acc = total_loss = 0
@@ -47,30 +46,34 @@ def test(model_path, is_valid=False):
             for batch in range(total_batch):
                 # xs, _ = inputs.next_batch()
 
-                if is_valid:
-                    xs, ys = inputs.next_batch(valid_set=True)
+                if not is_test:
+                    xs, ys, ans = inputs.next_batch(valid_set=True)
                     acc, loss = sess.run([accuracy, xent],
                                          feed_dict={X: xs,
                                                     Y: ys,
+                                                    A: ans,
                                                     keep_prob: 1})
 
                     total_acc += acc
                     total_loss += loss
 
                 else:
-                    xs, ys = inputs.next_batch(valid_set=False)
+                    xs, ys, ans = inputs.next_batch(valid_set=False)
                     predict = sess.run(probability,
                                        feed_dict={X: xs,
                                                   Y: ys,
+                                                  A: ans,
                                                   keep_prob: 1})
                     if total_predict is None:
                         total_predict = predict
                     else:
                         total_predict = np.concatenate((total_predict, predict))
 
-            if is_valid:
+            if not is_test:
                 print('Accuracy: {:.6f}, Loss: {:.6f}'.format(total_acc/total_batch, total_loss/total_batch))
             else:
+                idx = pd.read_json('data/origin/test.json')
+                idx = idx['id']
                 is_iceberg = total_predict[:, 1]
                 data = pd.DataFrame({'id': idx, 'is_iceberg': is_iceberg}, index=None)
                 data.to_csv('test.csv', index=False, float_format='%.6f')
@@ -80,4 +83,4 @@ def test(model_path, is_valid=False):
 
 
 if __name__ == '__main__':
-    test('./log/train/Tue Jan  2 09:48:16 2018_lr0.0001_ep30_b30/train/', is_valid=False)
+    test('./log/train/Tue Jan  2 09:48:16 2018_lr0.0001_ep30_b30/train/', is_test=True)
