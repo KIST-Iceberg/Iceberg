@@ -13,9 +13,7 @@ import datetime
 from sklearn.model_selection import train_test_split
 from os.path import join as opj
 from matplotlib import pyplot as plt
-
 from mpl_toolkits.mplot3d import Axes3D
-
 import pylab
 plt.rcParams['figure.figsize'] = 10, 10
 #%matplotlib inline
@@ -52,7 +50,6 @@ with tf.name_scope("concate_train_test"):
 
 is_iceberg_train = train['is_iceberg']
 ID = test['id']
-
 
 def get_more_images(imgs):
     more_images = []
@@ -164,8 +161,8 @@ with tf.name_scope('FC3'):
 with tf.name_scope('opt'):
     loss = tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=model, labels=Y))
     optimizer = tf.train.AdamOptimizer(learning_rate=0.001, beta1=0.9, beta2=0.999, epsilon=1e-08). minimize(loss)
-
     tf.summary.scalar('Loss',loss)
+
 def next_batch(batch_s, data, labels):
     '''
     Return a total of `num` random samples and labels.
@@ -193,6 +190,8 @@ with tf.Session() as sess:
     # divide train set(75% : train, 25% : test)
     # if random state == int, this can guarantee that the output of Run 1 will be equal to the output of Run 2,
     X_train_cv, X_test, is_iceberg_cv, is_iceberg_test = train_test_split(X_train, is_iceberg_train, random_state=1, train_size=0.75)
+    X_exp_train = get_more_images(X_train_cv)
+    exp_is_iceberg_cv = np.concatenate((is_iceberg_cv,is_iceberg_cv,is_iceberg_cv))
     # print(float(len(X_train_cv)), "/", float(len(X_test)), "/", int(len(is_iceberg_cv)),"/", int(len(is_iceberg_test)))
 
     batch_size = 30
@@ -214,22 +213,20 @@ with tf.Session() as sess:
     merged = tf.summary.merge_all()
     writer = tf.summary.FileWriter('./logs/'+log_dir, sess.graph)
 
-
-
     # epoch once -> entity data set once
-    for epoch in range(30):
+    for epoch in range(150):
         total_loss = 0
 
         # total_batch * batch_size = number of entity data set
         # number of data set : 1604 (X_train_cv: 1203, X_test: 401)
         for a in range(total_batch+1):
-             batch_xs, batch_ys = next_batch(batch_size, X_train_cv, is_iceberg_cv)
+             batch_xs, batch_ys = next_batch(batch_size, X_exp_train, exp_is_iceberg_cv)
              # batch_xs = batch_xs.reshape(-1, 75, 75, 3)
-             # ValueError: not enough values to unpack (expected 3, got 2) --> run으로 들어갈 값과 결과값의 갯수가 다를경우
+             # ValueError: not enough values to unpack (expected 3, got 2)
              summary, _, loss_val = sess.run([merged, optimizer, loss],
                                         feed_dict={X:batch_xs,
                                                    Y:batch_ys,
-                                                   keep_prob:0.8})
+                                                   keep_prob:0.75})
              writer.add_summary(summary)
              total_loss += loss_val
         print('Epoch:', '%04d' % (epoch + 1),
