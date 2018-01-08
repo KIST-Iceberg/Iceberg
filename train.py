@@ -1,14 +1,11 @@
 # Copy Right Kairos03 2017. All Right Reserved.
-"""
-train
-"""
+
 from __future__ import absolute_import
 
 import time
 
 import tensorflow as tf
 import numpy as np
-from sklearn.metrics import log_loss
 
 from models import conv2_mp2_dense1
 from data import process
@@ -17,10 +14,9 @@ from data import data_input
 # Hyper-parameters
 LEARNING_RATE = 1e-3
 TOTAL_EPOCH = 500
-BATCH_SIZE = 1000
+BATCH_SIZE = 600
 DROPOUT_RATE = 0.2
-REGULARIZATION_BETA = 1e-2
-RANDOM_SEED = int(np.random.random() * 100)
+REGULARIZATION_BETA = 1e-3
 
 CURRENT = time.time()
 
@@ -29,7 +25,6 @@ SESSION_NAME = '{}_lr{}_ep{}_b{}'.format(
 LOG_TRAIN_PATH = './log/' + SESSION_NAME + '/train/'
 LOG_TEST_PATH = './log/' + SESSION_NAME + '/test/'
 MODEL_PATH = LOG_TRAIN_PATH + 'model.ckpt'
-
 
 def train(is_valid):
     # data set load
@@ -45,14 +40,7 @@ def train(is_valid):
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     model, xent, optimizer, accuracy = conv2_mp2_dense1.make_model(
-        X, Y, A, keep_prob, LEARNING_RATE)
-
-    with tf.name_scope('hyperparam'):
-        tf.summary.scalar('learning_rate', LEARNING_RATE)
-        tf.summary.scalar('batch_size', BATCH_SIZE)
-        tf.summary.scalar('dropout_rate', DROPOUT_RATE)
-        tf.summary.scalar('regularization_beta', REGULARIZATION_BETA)
-        tf.summary.scalar('random_seed', RANDOM_SEED)
+        X, Y, A, keep_prob, LEARNING_RATE, REGULARIZATION_BETA)
 
     print('Train Start')
 
@@ -68,8 +56,6 @@ def train(is_valid):
         total_batch = inputs.total_batch
         if is_valid:
             valid_total_batch = inputs.valid_total_batch
-
-        probability = sess.graph.get_tensor_by_name('matrices/proba:0')
 
         for epoch in range(TOTAL_EPOCH):
 
@@ -95,34 +81,32 @@ def train(is_valid):
 
             epoch_loss = epoch_loss / total_batch
             epoch_acc = epoch_acc / total_batch
-            if epoch % 20 == 9 or epoch == 0:
+            if epoch % 20 == 9 or epoch == 0: 
                 print('[{:05.3f}] EP: {:05d}, loss: {:0.5f}, acc: {:0.5f}'
-                      .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc))
+                    .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc))
 
             # valid
             if is_valid:
 
-                epoch_acc = logloss = 0
+                epoch_acc = 0
                 xs = ys = None
 
                 for batch_num in range(valid_total_batch):
                     xs, ys, ans = inputs.next_batch(valid_set=True)
 
-                    acc, predict = sess.run([accuracy, probability],
-                                            feed_dict={X: xs, Y: ys, A: ans, keep_prob: 1})
+                    acc = sess.run(accuracy,
+                                   feed_dict={X: xs, Y: ys, A: ans, keep_prob: 1})
 
                     epoch_acc += acc
-                    logloss += log_loss(ys, predict)
 
                 summary = sess.run(merged,
                                    feed_dict={X: xs, Y: ys, A: ans, keep_prob: 1})
                 test_writer.add_summary(summary, epoch)
 
                 epoch_acc = epoch_acc / valid_total_batch
-                logloss = logloss / valid_total_batch
-                if epoch % 20 == 9 or epoch == 0:
-                    print('[{:05.3f}] VALID EP: {:05d}, logloss: {:0.5f} acc: {:0.5f}'
-                          .format(time.time() - CURRENT, epoch, logloss, epoch_acc))
+                if epoch % 20 == 9 or epoch == 0: 
+                    print('[{:05.3f}] VALID EP: {:05d}, acc: {:0.5f}'
+                        .format(time.time() - CURRENT, epoch, epoch_acc))
 
         # model save
         saver.save(sess, MODEL_PATH)
