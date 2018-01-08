@@ -10,7 +10,7 @@ import tensorflow as tf
 import numpy as np
 from sklearn.metrics import log_loss
 
-from models import conv2_mp2_dense1
+from models import model_conv_simple
 from data import process
 from data import data_input
 
@@ -44,7 +44,7 @@ def train(is_valid):
         A = tf.placeholder(tf.float32, [None, 1], name='A')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-    model, xent, optimizer, accuracy = conv2_mp2_dense1.make_model(
+    xent, optimizer, accuracy = model_conv_simple.make_model(
         X, Y, A, keep_prob, LEARNING_RATE)
 
     with tf.name_scope('hyperparam'):
@@ -96,11 +96,11 @@ def train(is_valid):
             epoch_loss = epoch_loss / total_batch
             epoch_acc = epoch_acc / total_batch
             if epoch % 20 == 9 or epoch == 0:
-                print('[{:05.3f}] EP: {:05d}, loss: {:0.5f}, acc: {:0.5f}'
+                print('[{:05.3f}] \tTRAIN EP: {:05d} | \tloss: {:0.5f}| \tacc: {:0.5f}'
                       .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc))
 
             # valid
-            if is_valid:
+            if is_valid and (epoch % 20 == 9 or epoch == 0):
 
                 epoch_acc = logloss = 0
                 xs = ys = None
@@ -120,9 +120,9 @@ def train(is_valid):
 
                 epoch_acc = epoch_acc / valid_total_batch
                 logloss = logloss / valid_total_batch
-                if epoch % 20 == 9 or epoch == 0:
-                    print('[{:05.3f}] VALID EP: {:05d}, logloss: {:0.5f} acc: {:0.5f}'
-                          .format(time.time() - CURRENT, epoch, logloss, epoch_acc))
+
+                print('[{:05.3f}] \tVALID EP: {:05d} | \tloss: {:0.5f}| \tacc: {:0.5f}'
+                        .format(time.time() - CURRENT, epoch, logloss, epoch_acc))
 
         # model save
         saver.save(sess, MODEL_PATH)
