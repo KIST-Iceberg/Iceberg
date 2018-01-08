@@ -11,10 +11,9 @@ import tensorflow as tf
 import datetime
 
 from sklearn.model_selection import train_test_split
-from os.path import join as opj
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
-import pylab
+from scipy.ndimage import rotate as rot
 plt.rcParams['figure.figsize'] = 10, 10
 #%matplotlib inline
 
@@ -55,12 +54,14 @@ def get_more_images(imgs):
     more_images = []
     vert_flip_imgs = []
     hori_flip_imgs = []
+    rot_imgs = []
 
     for i in range(0, imgs.shape[0]):
         a = imgs[i, :, :, 0]
         b = imgs[i, :, :, 1]
         c = imgs[i, :, :, 2]
 
+        # 0 : left-right, 1: up-down
         av = cv2.flip(a, 1)
         ah = cv2.flip(a, 0)
         bv = cv2.flip(b, 1)
@@ -71,10 +72,17 @@ def get_more_images(imgs):
         vert_flip_imgs.append(np.dstack((av, bv, cv)))
         hori_flip_imgs.append(np.dstack((ah, bh, ch)))
 
+        a_rot = rot(a, 30, reshape=False)
+        b_rot = rot(b, 30, reshape=False)
+        c_rot = rot(c, 30, reshape=False)
+
+        rot_imgs.append(np.dstack((a_rot,b_rot,c_rot)))
+
     v = np.array(vert_flip_imgs)
     h = np.array(hori_flip_imgs)
+    r = np.array(rot_imgs)
 
-    more_images = np.concatenate((imgs, v, h))
+    more_images = np.concatenate((imgs, v, h, r))
 
     return more_images
 
@@ -191,7 +199,7 @@ with tf.Session() as sess:
     # if random state == int, this can guarantee that the output of Run 1 will be equal to the output of Run 2,
     X_train_cv, X_test, is_iceberg_cv, is_iceberg_test = train_test_split(X_train, is_iceberg_train, random_state=1, train_size=0.75)
     X_exp_train = get_more_images(X_train_cv)
-    exp_is_iceberg_cv = np.concatenate((is_iceberg_cv,is_iceberg_cv,is_iceberg_cv))
+    exp_is_iceberg_cv = np.concatenate((is_iceberg_cv,is_iceberg_cv,is_iceberg_cv,is_iceberg_cv))
     # print(float(len(X_train_cv)), "/", float(len(X_test)), "/", int(len(is_iceberg_cv)),"/", int(len(is_iceberg_test)))
 
     batch_size = 30
