@@ -50,7 +50,7 @@ class Dataset:
             self.total_batch = int(self.data_size / self.batch_size) + 1
             self.valid_total_batch = int(self.valid_size / self.batch_size) + 1
 
-    def next_batch(self, valid_set=False):
+    def next_batch(self, seed, valid_set=False):
 
         if valid_set:
             data = self.valid_data
@@ -65,7 +65,6 @@ class Dataset:
 
         # shuffle
         if self.is_shuffle and self.batch_cnt == 0:
-            seed = int(np.random.random() * 100)
             np.random.seed(seed)
             np.random.shuffle(data)
             np.random.seed(seed)
@@ -124,7 +123,7 @@ if __name__ == '__main__':
 
     print('y', y.shape)
     print('angle', angle.shape)
-    dd = get_dataset(600, x, y, angle, is_shuffle=False, is_valid=True)
+    dd = get_dataset(1000, x, y, angle, is_shuffle=False, is_valid=True)
 
     print(dd.valid_data.shape)
     print(dd.data.shape)

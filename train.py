@@ -11,21 +11,21 @@ import numpy as np
 from sklearn.metrics import log_loss
 
 from models import model_conv_simple
+from models import model_new_conv
 from data import process
 from data import data_input
 
 # Hyper-parameters
-LEARNING_RATE = 1e-3
-TOTAL_EPOCH = 500
-BATCH_SIZE = 1000
-DROPOUT_RATE = 0.2
-REGULARIZATION_BETA = 1e-2
-RANDOM_SEED = int(np.random.random() * 100)
+LEARNING_RATE = 1e-6
+TOTAL_EPOCH = 200
+BATCH_SIZE = 100
+DROPOUT_RATE = 0.1
+RANDOM_SEED = int(np.random.random() * 1000)
 
 CURRENT = time.time()
 
-SESSION_NAME = '{}_lr{}_ep{}_b{}'.format(
-    time.ctime(), LEARNING_RATE, TOTAL_EPOCH, BATCH_SIZE)
+SESSION_NAME = '{}_lr{}_ep{}'.format(
+    time.ctime(), LEARNING_RATE, TOTAL_EPOCH)
 LOG_TRAIN_PATH = './log/' + SESSION_NAME + '/train/'
 LOG_TEST_PATH = './log/' + SESSION_NAME + '/test/'
 MODEL_PATH = LOG_TRAIN_PATH + 'model.ckpt'
@@ -44,26 +44,35 @@ def train(is_valid):
         A = tf.placeholder(tf.float32, [None, 1], name='A')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-    xent, optimizer, accuracy = model_conv_simple.make_model(
+    _, xent, optimizer, accuracy = model_new_conv.make_model(
         X, Y, A, keep_prob, LEARNING_RATE)
 
     with tf.name_scope('hyperparam'):
         tf.summary.scalar('learning_rate', LEARNING_RATE)
         tf.summary.scalar('batch_size', BATCH_SIZE)
-        tf.summary.scalar('dropout_rate', DROPOUT_RATE)
-        tf.summary.scalar('regularization_beta', REGULARIZATION_BETA)
+        tf.summary.scalar('dropout_rate', keep_prob)
         tf.summary.scalar('random_seed', RANDOM_SEED)
+
+        print()
+        print('Hyper Params')
+        print("====================================================")
+        print('Learning Rate', LEARNING_RATE)
+        print('Batch Size', BATCH_SIZE)
+        print('Dropout Rate', DROPOUT_RATE)
+        print('Random Seed', RANDOM_SEED)
+        print('\n')
 
     print('Train Start')
 
-    with tf.Session() as sess:
-        saver = tf.train.Saver()
-        merged = tf.summary.merge_all()
-        # last_time = CURRENT
+    saver = tf.train.Saver()
+    merged = tf.summary.merge_all()
 
+    with tf.Session() as sess:
+        
+        tf.global_variables_initializer().run()
+        
         train_writer = tf.summary.FileWriter(LOG_TRAIN_PATH, sess.graph)
         test_writer = tf.summary.FileWriter(LOG_TEST_PATH)
-        tf.global_variables_initializer().run()
 
         total_batch = inputs.total_batch
         if is_valid:
@@ -77,7 +86,7 @@ def train(is_valid):
             xs = ys = None
 
             for batch_num in range(total_batch):
-                xs, ys, ans = inputs.next_batch(valid_set=False)
+                xs, ys, ans = inputs.next_batch(RANDOM_SEED, valid_set=False)
 
                 _, loss, acc = sess.run([optimizer, xent, accuracy],
                                         feed_dict={X: xs, Y: ys, A: ans, keep_prob: DROPOUT_RATE})
@@ -95,22 +104,22 @@ def train(is_valid):
 
             epoch_loss = epoch_loss / total_batch
             epoch_acc = epoch_acc / total_batch
-            if epoch % 20 == 9 or epoch == 0:
-                print('[{:05.3f}] \tTRAIN EP: {:05d} | \tloss: {:0.5f}| \tacc: {:0.5f}'
+            if epoch % 20 == 19 or epoch == 0:
+                print('[{:05.3f}] TRAIN EP: {:05d} | loss: {:0.5f} | acc: {:0.5f}'
                       .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc))
 
             # valid
-            if is_valid and (epoch % 20 == 9 or epoch == 0):
+            if is_valid:
 
-                epoch_acc = logloss = 0
+                epoch_loss = epoch_acc = logloss = 0
                 xs = ys = None
 
                 for batch_num in range(valid_total_batch):
-                    xs, ys, ans = inputs.next_batch(valid_set=True)
+                    xs, ys, ans = inputs.next_batch(RANDOM_SEED, valid_set=True)
 
-                    acc, predict = sess.run([accuracy, probability],
+                    acc, loss, predict = sess.run([accuracy, xent, probability],
                                             feed_dict={X: xs, Y: ys, A: ans, keep_prob: 1})
-
+                    epoch_loss += loss
                     epoch_acc += acc
                     logloss += log_loss(ys, predict)
 
@@ -118,11 +127,12 @@ def train(is_valid):
                                    feed_dict={X: xs, Y: ys, A: ans, keep_prob: 1})
                 test_writer.add_summary(summary, epoch)
 
+                epoch_loss = epoch_loss / total_batch
                 epoch_acc = epoch_acc / valid_total_batch
                 logloss = logloss / valid_total_batch
-
-                print('[{:05.3f}] \tVALID EP: {:05d} | \tloss: {:0.5f}| \tacc: {:0.5f}'
-                        .format(time.time() - CURRENT, epoch, logloss, epoch_acc))
+                if epoch % 20 == 19 or epoch == 0:
+                    print('[{:05.3f}] VALID EP: {:05d} | loss: {:1.5f} | acc: {:1.5f} | logloss: {:1.5f}'
+                            .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc, logloss))
 
         # model save
         saver.save(sess, MODEL_PATH)
