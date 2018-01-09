@@ -1,4 +1,4 @@
-#
+# Copy Right Kairos03 2017. All Right Reserved.
 """
 """
 
@@ -17,6 +17,10 @@ def var_summary(var):
 
 
 def make_model(X, Y, A, keep_prob, learning_rate):
+
+    tf.summary.image('origin', X[:,:,:,0:3])
+    tf.summary.image('lee', X[:,:,:,3:6])
+    tf.summary.image('high', X[:,:,:,6:9])
 
     with tf.variable_scope('conv1'):
         bn = tf.layers.batch_normalization(X)

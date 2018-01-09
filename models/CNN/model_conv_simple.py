@@ -1,4 +1,7 @@
-#
+# Copy Right Kairos03 2017. All Right Reserved.
+"""
+simple cnn
+"""
 
 import tensorflow as tf
 
