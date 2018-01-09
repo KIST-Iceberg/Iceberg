@@ -30,7 +30,7 @@
                 "host": "192.168.100.2",
                 "port": 22,
                 "user": "mike2ox",
-                "password": faking01
+                "password": "faking01"
             }
         ]
     }

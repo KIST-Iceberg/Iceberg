@@ -28,7 +28,7 @@ with tf.name_scope("concate_train_test"):
     X_band_2 = np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in train["band_2"]])
     X_band_3 = (X_band_1+X_band_2)/2
     a = (X_band_1 - X_band_1.mean()) / (X_band_1.max() - X_band_1.min())
-    b = (X_band_2 - X_band_2.mean()) / (X_band_1.max() - X_band_2.min())
+    b = (X_band_2 - X_band_2.mean()) / (X_band_2.max() - X_band_2.min())
     c = (X_band_3 - X_band_3.mean()) / (X_band_3.max() - X_band_3.min())
 
     # HH, HV, avg value
@@ -40,10 +40,10 @@ with tf.name_scope("concate_train_test"):
     X_band_2=np.array([np.array(band).astype(np.float32).reshape(75, 75) for band in test["band_2"]])
     X_band_3 = (X_band_1+X_band_2)/2
     a = (X_band_1 - X_band_1.mean()) / (X_band_1.max() - X_band_1.min())
-    b = (X_band_2 - X_band_2.mean()) / (X_band_1.max() - X_band_2.min())
+    b = (X_band_2 - X_band_2.mean()) / (X_band_2.max() - X_band_2.min())
     c = (X_band_3 - X_band_3.mean()) / (X_band_3.max() - X_band_3.min())
 
-    Test = np.concatenate([X_band_1[:, :, :, np.newaxis], X_band_2[:, :, :, np.newaxis],((X_band_1+X_band_2)/2)[:, :, :, np.newaxis]], axis=-1)
+    Test = np.concatenate([a[:, :, :, np.newaxis], b[:, :, :, np.newaxis],c[:, :, :, np.newaxis]], axis=-1)
     n_test = np.reshape(Test, [-1,75,75,1])
     tf.summary.image('Test', Test, 5)
 
@@ -219,10 +219,10 @@ with tf.Session() as sess:
         sess.run(tf.global_variables_initializer())
 
     merged = tf.summary.merge_all()
-    writer = tf.summary.FileWriter('./logs/'+log_dir, sess.graph)
+    writer = tf.summary.FileWriter('./logs1/'+log_dir, sess.graph)
 
     # epoch once -> entity data set once
-    for epoch in range(150):
+    for epoch in range(200):
         total_loss = 0
 
         # total_batch * batch_size = number of entity data set
@@ -247,6 +247,7 @@ with tf.Session() as sess:
     ID = np.array(ID)
 
     is_correct = tf.equal(tf.argmax(model, 1), tf.argmax(Y, 1))
+    predict = tf.argmax(model, 1)
     test_accuracy = tf.reduce_mean(tf.cast(is_correct, tf.float32))
     test_loss = tf.reduce_mean(tf.cast(loss, tf.float32))
 
@@ -254,7 +255,7 @@ with tf.Session() as sess:
     is_iceberg_test = one_hot(is_iceberg_test, 2)
 
     Loss = sess.run([test_loss], feed_dict={X:X_test,
-                                            Y:is_iceberg_test,
+                                        Y:is_iceberg_test,
                                        keep_prob:1})
 
     print('test_loss :{}'.format(Loss))
