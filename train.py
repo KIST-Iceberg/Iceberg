@@ -9,17 +9,16 @@ import time
 import tensorflow as tf
 import numpy as np
 from sklearn.metrics import log_loss
-
-from models import model_conv_simple
-from models import model_new_conv
+from models.FC import model_FC
+from models.CNN_avgpool import model_cnn_avgpool
 from data import process
 from data import data_input
 
 # Hyper-parameters
-LEARNING_RATE = 1e-6
-TOTAL_EPOCH = 200
+LEARNING_RATE = 1e-3
+TOTAL_EPOCH = 300
 BATCH_SIZE = 100
-DROPOUT_RATE = 0.1
+DROPOUT_RATE = 0.9
 RANDOM_SEED = int(np.random.random() * 1000)
 
 CURRENT = time.time()
@@ -44,7 +43,7 @@ def train(is_valid):
         A = tf.placeholder(tf.float32, [None, 5], name='A')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-    _, xent, optimizer, accuracy = model_new_conv.make_model(
+    _, xent, optimizer, accuracy = model_cnn_avgpool.make_model(
         X, Y, A, keep_prob, LEARNING_RATE)
 
     with tf.name_scope('hyperparam'):
