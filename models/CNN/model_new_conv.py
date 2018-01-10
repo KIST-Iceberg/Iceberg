@@ -26,9 +26,9 @@ def make_model(X, Y, A, keep_prob, learning_rate):
         tf.summary.scalar('learning_rate', learning_rate)
 
     with tf.variable_scope('conv1'):
-        # bn = tf.layers.batch_normalization(X)
+        bn = tf.layers.batch_normalization(X)
         conv = tf.layers.conv2d(
-            X, 64, (3, 3), strides=(2, 2), activation=tf.nn.relu)
+            bn, 64, (3, 3), strides=(2, 2), activation=tf.nn.relu)
         drop = tf.layers.dropout(conv, keep_prob)
         print('[{:s}] \t | {}'.format('conv1', drop.shape))
 
@@ -36,9 +36,9 @@ def make_model(X, Y, A, keep_prob, learning_rate):
             var_summary(var)
 
     with tf.variable_scope('conv2'):
-        # bn = tf.layers.batch_normalization(drop)
+        bn = tf.layers.batch_normalization(drop)
         conv = tf.layers.conv2d(
-            drop, 128, (3, 3), strides=(2, 2), activation=tf.nn.relu)
+            bn, 128, (3, 3), strides=(2, 2), activation=tf.nn.relu)
         drop = tf.layers.dropout(conv, keep_prob)
         print('[{:s}] \t | {}'.format('conv2', drop.shape))
 
@@ -46,9 +46,9 @@ def make_model(X, Y, A, keep_prob, learning_rate):
             var_summary(var)
 
     with tf.variable_scope('conv3'):
-        # bn = tf.layers.batch_normalization(drop)
+        bn = tf.layers.batch_normalization(drop)
         conv = tf.layers.conv2d(
-            drop, 128, (3, 3), strides=(2, 2), activation=tf.nn.relu)
+            bn, 128, (3, 3), strides=(2, 2), activation=tf.nn.relu)
         drop = tf.layers.dropout(conv, keep_prob)
         print('[{:s}] \t | {}'.format('conv3', drop.shape))
 
@@ -56,9 +56,9 @@ def make_model(X, Y, A, keep_prob, learning_rate):
             var_summary(var)
 
     with tf.variable_scope('conv4'):
-        # bn = tf.layers.batch_normalization(drop)
+        bn = tf.layers.batch_normalization(drop)
         conv = tf.layers.conv2d(
-            drop, 64, (3, 3), strides=(2, 2), activation=tf.nn.relu)
+            bn, 64, (3, 3), strides=(2, 2), activation=tf.nn.relu)
         drop = tf.layers.dropout(conv, keep_prob)
         print('[{:s}] \t | {}'.format('conv4', drop.shape))
 
@@ -108,6 +108,5 @@ def make_model(X, Y, A, keep_prob, learning_rate):
 
         tf.summary.scalar('accuracy', accuracy)
         proba = tf.nn.softmax(output, name='proba')
-    
 
     return output, xent, optimizer, accuracy
