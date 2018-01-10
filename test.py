@@ -12,14 +12,16 @@ from data import process
 import train
 
 # hyper parameter
+# BATCH_SIZE = train.BATCH_SIZE
 BATCH_SIZE = train.BATCH_SIZE
+RANDOM_SEED = train.RANDOM_SEED
 
 
 def test(model_path, is_test=False):
     with tf.Graph().as_default() as graph:
         # data set load
         x, y, angle = process.load_from_pickle(is_test=is_test)
-        inputs = data_input.get_dataset(BATCH_SIZE, x, y, angle, is_shuffle=False, is_valid=False)
+        inputs = data_input.get_dataset(BATCH_SIZE, x, y, angle, is_shuffle=False, is_valid=(not is_test))
         total_batch = inputs.total_batch if is_test else inputs.valid_total_batch
 
         print('Test Start')
@@ -49,8 +51,8 @@ def test(model_path, is_test=False):
                 # xs, _ = inputs.next_batch()
 
                 if not is_test:
-                    xs, ys, ans = inputs.next_batch(valid_set=True)
-                    acc, loss = sess.run([accuracy, xent],
+                    xs, ys, ans = inputs.next_batch(RANDOM_SEED, valid_set=True)
+                    acc, loss, predict = sess.run([accuracy, xent, probability],
                                          feed_dict={X: xs,
                                                     Y: ys,
                                                     A: ans,
@@ -58,14 +60,17 @@ def test(model_path, is_test=False):
 
                     total_acc += acc
                     total_loss += loss
-
+                    if total_predict is None:
+                        total_predict = predict
+                    else:
+                        total_predict = np.concatenate((total_predict, predict))
                 else:
-                    xs, ys, ans = inputs.next_batch(valid_set=False)
+                    xs, ys, ans = inputs.next_batch(RANDOM_SEED, valid_set=False)
                     predict = sess.run(probability,
-                                       feed_dict={X: xs,
-                                                  Y: ys,
-                                                  A: ans,
-                                                  keep_prob: 1})
+                                        feed_dict={X: xs,
+                                                    Y: ys,
+                                                    A: ans,
+                                                    keep_prob: 1})
                     if total_predict is None:
                         total_predict = predict
                     else:
@@ -73,16 +78,20 @@ def test(model_path, is_test=False):
 
             if not is_test:
                 print('Accuracy: {:.6f}, Loss: {:.6f}'.format(total_acc/total_batch, total_loss/total_batch))
+                is_iceberg = total_predict[:, 1]
+                print('Log Loss', log_loss(inputs.valid_label[:,1], is_iceberg))
             else:
                 idx = pd.read_json('data/origin/test.json')
                 idx = idx['id']
                 is_iceberg = total_predict[:, 1]
                 data = pd.DataFrame({'id': idx, 'is_iceberg': is_iceberg}, index=None)
                 data.to_csv('test.csv', index=False, float_format='%.6f')
-                print('Log Loss', log_loss(inputs.label, is_iceberg))
+                # predict = [1 if p >= 0.98 else p for p in predict]
+                    # predict = [0 if p <= 0.02 else p for p in predict]
+                    # round_logloss += log_loss(ys, predict)
 
         print('Test Finish')
 
 
 if __name__ == '__main__':
-    test('./log/train/Tue Jan  2 09:48:16 2018_lr0.0001_ep30_b30/train/', is_test=True)
+    test('./log/BEST_0.0615 2018_lr0.001_ep200/train/', is_test=True)

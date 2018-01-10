@@ -15,11 +15,11 @@ from data import process
 from data import data_input
 
 # Hyper-parameters
-TOTAL_EPOCH = 200
+TOTAL_EPOCH = 1
 BATCH_SIZE = 100
 STARTER_LEARNING_RATE = 1e-3
-DECAY_RATE = 0.8
-DECAY_STEPS = 100
+DECAY_RATE = 0.9
+DECAY_STEPS = 20
 DROPOUT_RATE = 0.8
 RANDOM_SEED = int(np.random.random() * 1000)
 #RANDOM_SEED = 981
@@ -146,7 +146,7 @@ def train(is_valid):
             if is_valid:
                 
                 # initialize epoch variables
-                epoch_loss = epoch_acc = logloss = round_logloss = 0
+                epoch_loss = epoch_acc = logloss = 0
                 xs = ys = None
 
                 # start batch
@@ -162,9 +162,6 @@ def train(is_valid):
                     epoch_loss += loss
                     epoch_acc += acc
                     logloss += log_loss(ys, predict)
-                    # predict = [1 if p >= 0.98 else p for p in predict]
-                    # predict = [0 if p <= 0.02 else p for p in predict]
-                    # round_logloss += log_loss(ys, predict)
 
                 # write test summary
                 summary = sess.run(merged,
@@ -177,11 +174,13 @@ def train(is_valid):
                 epoch_acc = epoch_acc / valid_total_batch
                 logloss = logloss / valid_total_batch
                 if epoch % 20 == 19 or epoch == 0:
-                    print('[{:05.3f}] VALID EP: {:05d} | loss: {:1.5f} | acc: {:1.5f} | logloss: {:1.5f} | round_logloss: {:1.5f}'
-                          .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc, logloss, round_logloss))
+                    print('[{:05.3f}] VALID EP: {:05d} | loss: {:1.5f} | acc: {:1.5f} | logloss: {:1.5f}'
+                          .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc, logloss))
 
         # model save
         saver.save(sess, MODEL_PATH)
+
+    del inputs, x, y, angle
 
     print('Train Finish')
 
