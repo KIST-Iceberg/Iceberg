@@ -39,9 +39,9 @@ def train(is_valid):
         BATCH_SIZE, x, y, angle, is_shuffle=True, is_valid=is_valid)
 
     with tf.name_scope('input'):
-        X = tf.placeholder(tf.float32, [None, 75, 75, 3], name='X')
+        X = tf.placeholder(tf.float32, [None, 75, 75, 9], name='X')
         Y = tf.placeholder(tf.float32, [None, 2], name='Y')
-        A = tf.placeholder(tf.float32, [None, 1], name='A')
+        A = tf.placeholder(tf.float32, [None, 5], name='A')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
     _, xent, optimizer, accuracy = model_new_conv.make_model(

@@ -50,7 +50,7 @@ def gen_combined_channel(images):
     return new_img
 
 
-def high_filter_and_gamma_correction(images, length=1):
+def high_filter(images, length=1):
     """
     High filter and Gamma correction
     :param images: images, ndarray, dims like [num of images, width, height, channel]
@@ -102,6 +102,8 @@ def lee_filter(images, size=75):
 
         img_weights = img_variance**2 / (img_variance**2 + overall_variance**2)
         img_output = img_mean + img_weights * (img - img_mean)
+
+        img_output = np.power(np.abs(img_output), 2)  # Gamma correction
 
         result.append(img_output)
 
@@ -299,20 +301,42 @@ def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하�
     # labels
     labels = np.zeros(origin_images.shape[0], dtype=int) if is_test else data.is_iceberg.values
 
+    # additional data
     # angles
     angles = data.inc_angle.values
     # convert 'na' to 0.0
     angles = np.asarray([angle if angle != 'na' else 0.0 for angle in angles])
 
+    # band max
+    def band_max(band):
+        band = np.array(band)
+        return band.max()
+    band_1_max = data['band_1'].apply(band_max)
+    band_2_max = data['band_2'].apply(band_max)
+
+    # bnad variance
+    def band_variance(band):
+        band = np.array(band)
+        return band.var()
+    band_1_var = data['band_1'].apply(band_variance)
+    band_2_var = data['band_2'].apply(band_variance)
+
+    # additional data combine
+    additional = np.stack([angles, band_1_max, band_2_max, band_1_var, band_2_var])
+    additional = np.transpose(additional, (1, 0))
+    assert additional.shape == (angles.shape[0], 5)
+
     # generate combined channel
     combined = gen_combined_channel(origin_images)
     print("Combined.", combined.shape)
 
-    # pass high filter
-    # filtered = high_filter_and_gamma_correction(combined)
+    # filter
+    lee_filtered = lee_filter(combined)
+    high_filtered = high_filter(combined)
+    filtered = np.concatenate([combined, lee_filtered, high_filtered], 3)
+    
+    assert lee_filtered.shape[3] + high_filtered.shape[3] + combined.shape[3] == filtered.shape[3]
 
-    # lee filter
-    filtered = lee_filter(combined)
     print("Filtered.", filtered.shape)
 
     def one_hot(data, classes=2):
@@ -322,12 +346,11 @@ def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하�
         return one_hot_data
 
     labels = one_hot(labels)
-    angles = np.reshape(angles, [-1, 1])
 
-    return filtered, labels, angles
+    return filtered, labels, additional
 
 
-def argumentate_data(images, labels, angles):
+def argumentate_data(images, labels, additional):
     """
     Data Argumentate
 
@@ -341,14 +364,14 @@ def argumentate_data(images, labels, angles):
     :returns: argumentated images, labels, angels
     """
     # rotate
-    images, labels, angles = rotate_img(images, labels, angles)
+    images, labels, additional = rotate_img(images, labels, additional)
     print("Rotated.", images.shape)
 
     # flip
     # images, labels, angles = flip_image(images, labels, angles, direction='vertical')
     # print("Flipped.", images.shape)
 
-    return images, labels, angles
+    return images, labels, additional
 
 
 def main(is_test=False):
@@ -356,21 +379,21 @@ def main(is_test=False):
 
     # data pre-processing
     print("Pre-Processing Start")
-    images, labels, angles = pre_process_data(is_test)
+    images, labels, additional = pre_process_data(is_test)
 
     # data argumentation
     if not is_test:
         print('Argumentation Start')
-        images, labels, angles = argumentate_data(images, labels, angles)
+        images, labels, additional = argumentate_data(images, labels, additional)
 
     # save to pickle
-    save_to_pickle(images, labels, angles, is_test=is_test)
+    save_to_pickle(images, labels, additional, is_test=is_test)
 
     # load from pickle
     i, l, a = load_from_pickle(is_test=is_test)
     print('image', i, i.shape)
     print('label', l, l.shape)
-    print('angle', a, a.shape)
+    print('additional', a, additional.shape)
 
     print("Data Processing Done.")
 
