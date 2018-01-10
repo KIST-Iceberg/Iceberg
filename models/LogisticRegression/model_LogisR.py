@@ -7,16 +7,16 @@ import tensorflow as tf
 import numpy as np
 from sklearn.metrics import log_loss
 from sklearn.linear_model import LogisticRegression
-
+def make_model(X, Y, A, keep_prob, learning_rate):
 def make_model(X_train, Y_train, A, X_test, Y_test, trainable = True):
-"""
-make neural network(Logistic regression)
-:param X: input data(75*75*9)
-:param Y: output data(2)
-:param A : Iceberg_angle, band_max, band_variance 
-:param trainable : train step is True. if not, it's False.
-:return: 
-"""    
+    """
+    make neural network(Logistic regression)
+    :param X: input data(75*75*9)
+    :param Y: output data(2)
+    :param A : Iceberg_angle, band_max, band_variance 
+    :param trainable : train step is True. if not, it's False.
+    :return: 
+    """    
     with tf.name_scope('Logistic reg'):
         logreg = LogisticRegression()
         logreg.fit(X_train, Y_train)
