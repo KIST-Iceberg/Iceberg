@@ -75,7 +75,7 @@ for model_name in keys:
     history = model.fit([X, angle], Y, shuffle=True, verbose=1, epochs=100)
 
     # submit
-    X, Y, angle = get_data(test)
+    X, Y, angle = get_data(test, is_test=True)
     predicted_test = model.predict([X, angle])
     
     print(predicted_test)
