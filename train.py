@@ -9,6 +9,7 @@ import time
 import tensorflow as tf
 import numpy as np
 from sklearn.metrics import log_loss
+from models.CNN_quisutdeus7 import model_cnn_quisutdeus7_2
 from models.FC import model_FC
 from models.CNN_avgpool import model_cnn_avgpool
 from data import process
@@ -17,16 +18,16 @@ from data import data_input
 # Hyper-parameters
 LEARNING_RATE = 1e-3
 TOTAL_EPOCH = 300
-BATCH_SIZE = 100
-DROPOUT_RATE = 0.9
+BATCH_SIZE = 60
+DROPOUT_RATE = 0.65
 RANDOM_SEED = int(np.random.random() * 1000)
 
 CURRENT = time.time()
 
 SESSION_NAME = '{}_lr{}_ep{}'.format(
     time.ctime(), LEARNING_RATE, TOTAL_EPOCH)
-LOG_TRAIN_PATH = './log/' + SESSION_NAME + '/train/'
-LOG_TEST_PATH = './log/' + SESSION_NAME + '/test/'
+LOG_TRAIN_PATH = './log2/' + SESSION_NAME + '/train/'
+LOG_TEST_PATH = './log2/' + SESSION_NAME + '/test/'
 MODEL_PATH = LOG_TRAIN_PATH + 'model.ckpt'
 
 
@@ -43,8 +44,9 @@ def train(is_valid):
         A = tf.placeholder(tf.float32, [None, 5], name='A')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-    _, xent, optimizer, accuracy = model_cnn_avgpool.make_model(
+    _, xent, optimizer, accuracy = model_cnn_quisutdeus7_2.make_model(
         X, Y, A, keep_prob, LEARNING_RATE)
+    
 
     with tf.name_scope('hyperparam'):
         tf.summary.scalar('learning_rate', LEARNING_RATE)
