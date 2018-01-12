@@ -110,6 +110,34 @@ def lee_filter(images, size=75):
     return np.stack(result)
 
 
+def crop_center(img, cx, cy, size=48):
+
+    def bound(value):
+        """
+        calculate start and end pos with boundary
+        """
+        # calculate start, end pos with bound
+        start = 0 if value - size//2 <= 0 else value-size//2
+        end = 75 if value + size//2 >= 75 else value+size//2
+
+        # resize start-end to crop size
+        c_size = abs(start-end)
+        if c_size != size:
+            if start == 0:
+                end += (size - c_size)
+            else:
+                start -= (size - c_size)
+        
+        assert abs(start - end) == size
+
+        return start, end
+    
+    # get x, y pos 
+    sx, ex = bound(cx)
+    sy, ey = bound(cy)
+
+    return img[sx:ex, sy:ey]
+
 def rotate_img(images, labels, angles):
     """
     Rotate image in 30 degrees
@@ -331,11 +359,18 @@ def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하�
     print("Combined.", combined.shape)
 
     # filter
-    lee_filtered = lee_filter(combined)
-    high_filtered = high_filter(combined)
-    filtered = np.concatenate([combined, lee_filtered, high_filtered], 3)
+    # lee_filtered = lee_filter(combined)
+    # high_filtered = high_filter(combined)
+    # filtered = np.concatenate([combined, lee_filtered, high_filtered], 3)
     
-    assert lee_filtered.shape[3] + high_filtered.shape[3] + combined.shape[3] == filtered.shape[3]
+    # assert lee_filtered.shape[3] + high_filtered.shape[3] + combined.shape[3] == filtered.shape[3]
+    # center pos
+    cx = img1.argmax() // 75
+    cy = img1.argmax() % 75
+    crop1 = crop_center(combined[0], cx, cy)
+    crop2 = crop_center(combined[1], cx, cy)
+    crop3 = crop_center(combined[3], cx, cy)
+    filtered = np.stack([crop1,crop2,crop3], axis=3)
 
     print("Filtered.", filtered.shape)
 
