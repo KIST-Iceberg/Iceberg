@@ -110,6 +110,11 @@ def lee_filter(images, size=75):
     return np.stack(result)
 
 
+def iso(arr, rate=2):
+    p = arr > (np.mean(arr)+rate*np.std(arr))
+    return p * arr
+
+
 def crop_center(img, cx, cy, size=48):
 
     def bound(value):
@@ -137,6 +142,7 @@ def crop_center(img, cx, cy, size=48):
     sy, ey = bound(cy)
 
     return img[sx:ex, sy:ey]
+
 
 def rotate_img(images, labels, angles):
     """
@@ -292,7 +298,7 @@ def load_from_pickle(is_test=False):
     return images, labels, angles
 
 
-def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하도록 변경
+def pre_process_data(is_test=False): 
     """
     Data Pre-Process
 
@@ -309,25 +315,31 @@ def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하�
     print("Origin Data Loaded.")
 
     # make list to ndarray
-    img_dict = {}
+    images = []
 
-    for band in ["band_1", "band_2"]:
-        samples = data.loc[:, band].values
-        for i in range(samples.size):
-            samples[i] = np.reshape(samples[i], (75, 75))
+    for i in range(data.shape[0]):
+        channel = []
+        for band in ["band_1", "band_2", "mean"]:
+            if band is not "mean":
+                sample = data.loc[i, band]
+                sample = np.reshape(sample, (75, 75))
+                sample = iso(sample)
+            else:
+                sample = (channel[0] + channel[1]) / 2
+            channel.append(sample)
 
-        img_dict[band] = np.stack(samples)
+        img = np.stack(channel, axis=2)
+        assert img.shape == (75, 75, 3)
+        images.append(img)
 
-    origin_images = np.stack((img_dict["band_1"], img_dict["band_2"]), axis=3)
+    images = np.stack(images, axis=3)
+    images = np.transpose(images, (3, 0, 1, 2))
+    assert images.shape[1:4] == (75,75,3)
 
-    # convert check
-    assert origin_images[720, 64, 32, 0] == data.loc[720, "band_1"][64, 32]
-    assert origin_images[123, 6, 71, 1] == data.loc[123, "band_2"][6, 71]
-    assert origin_images[123, 6, 71, 1] != data.loc[123, "band_1"][6, 71]
     print("Image to Numpy Done.")
 
     # labels
-    labels = np.zeros(origin_images.shape[0], dtype=int) if is_test else data.is_iceberg.values
+    labels = np.zeros(images.shape[0], dtype=int) if is_test else data.is_iceberg.values
 
     # additional data
     # angles
@@ -355,8 +367,8 @@ def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하�
     assert additional.shape == (angles.shape[0], 5)
 
     # generate combined channel
-    combined = gen_combined_channel(origin_images)
-    print("Combined.", combined.shape)
+    # combined = gen_combined_channel(origin_images)
+    # print("Combined.", combined.shape)
 
     # filter
     # lee_filtered = lee_filter(combined)
@@ -364,15 +376,8 @@ def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하�
     # filtered = np.concatenate([combined, lee_filtered, high_filtered], 3)
     
     # assert lee_filtered.shape[3] + high_filtered.shape[3] + combined.shape[3] == filtered.shape[3]
-    # center pos
-    cx = img1.argmax() // 75
-    cy = img1.argmax() % 75
-    crop1 = crop_center(combined[0], cx, cy)
-    crop2 = crop_center(combined[1], cx, cy)
-    crop3 = crop_center(combined[3], cx, cy)
-    filtered = np.stack([crop1,crop2,crop3], axis=3)
 
-    print("Filtered.", filtered.shape)
+    # print("Filtered.", filtered.shape)
 
     def one_hot(data, classes=2):
         """ one hot """
@@ -382,7 +387,7 @@ def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하�
 
     labels = one_hot(labels)
 
-    return filtered, labels, additional
+    return images, labels, additional
 
 
 def argumentate_data(images, labels, additional):
