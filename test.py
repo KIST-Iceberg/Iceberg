@@ -13,6 +13,7 @@ import train
 
 # hyper parameter
 BATCH_SIZE = train.BATCH_SIZE
+RANDOM_SEED = train.RANDOM_SEED
 
 
 def test(model_path, is_test=False):
@@ -49,7 +50,7 @@ def test(model_path, is_test=False):
                 # xs, _ = inputs.next_batch()
 
                 if not is_test:
-                    xs, ys, ans = inputs.next_batch(valid_set=True)
+                    xs, ys, ans = inputs.next_batch(RANDOM_SEED, valid_set=True)
                     acc, loss = sess.run([accuracy, xent],
                                          feed_dict={X: xs,
                                                     Y: ys,
@@ -60,7 +61,7 @@ def test(model_path, is_test=False):
                     total_loss += loss
 
                 else:
-                    xs, ys, ans = inputs.next_batch(valid_set=False)
+                    xs, ys, ans = inputs.next_batch(RANDOM_SEED, valid_set=False)
                     predict = sess.run(probability,
                                        feed_dict={X: xs,
                                                   Y: ys,
@@ -85,4 +86,4 @@ def test(model_path, is_test=False):
 
 
 if __name__ == '__main__':
-    test('./log/train/Tue Jan  2 09:48:16 2018_lr0.0001_ep30_b30/train/', is_test=True)
+    test('./log/Fri Jan 12 11:38:25 2018_lr0.001_ep300/train/', is_test=True)
