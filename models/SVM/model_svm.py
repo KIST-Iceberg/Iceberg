@@ -22,8 +22,10 @@ def data_process():
     print("shape| angle  {}" .format(angle.shape))
 
     return x_train, x_test, y_train, y_test, angle_train, angle_test
-
 def make_model(X_train, X_test, Y_train, Y_test, A_train, A_test):
+    # iter number
+    max_iter = 10
+
     # change shape
     layer_train = np.reshape(np.ravel(X_train), (-1, 75*75*9))
     layer_test = np.reshape(np.ravel(X_test), (-1, 75*75*9))
@@ -36,8 +38,9 @@ def make_model(X_train, X_test, Y_train, Y_test, A_train, A_test):
     print('[{:s}] \t | {}'.format('add_data_train', layer_train.shape))
     print('[{:s}] \t | {}'.format('add_data_test', layer_test.shape))
     Y_train = Y_train[:,0]
+    Y_test = Y_test[:,0]
 
-    clf = svm.SVC(max_iter=150, probability=True)
+    clf = svm.SVC(max_iter=max_iter, probability=True)
     clf.fit(layer_train, Y_train)
     print('SVC fit complete')
 
@@ -46,11 +49,11 @@ def make_model(X_train, X_test, Y_train, Y_test, A_train, A_test):
     logloss = log_loss(Y_test, predicts_prob)
 
     train_acc = clf.score(layer_train, Y_train)
-    # test_acc = clf.score(layer_test, Y_test)
+    test_acc = clf.score(layer_test, Y_test)
 
     print('SVC Result')
-    print('[max_itr : {:f} | logloss : {:0.5f} | train_acc : {:0.5f} ]'
-           .format(150, logloss, train_acc))
+    print('[max_itr : {:f} | logloss : {:0.5f} | train_acc : {:0.5f} | test_acc : {:0.5f}]'
+           .format(max_iter, logloss, train_acc, test_acc))
 
 if __name__ == '__main__':
     x_tr, x_te, y_tr, y_te, angle_tr, angle_te = data_process()
