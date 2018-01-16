@@ -32,7 +32,7 @@ def make_model(X, Y, A, keep_prob, learning_rate):
     with tf.name_scope('DN1'):
         bn1 = tf.layers.batch_normalization(X_A)
         dense1 = tf.layers.dense(bn1, 1000, tf.nn.relu)
-        dense1 = tf.nn.dropout(dense1, keep_prob = keep_prob)
+        dense1 = tf.layers.dropout(dense1, rate=keep_prob)
         for var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='den1'):
             var_summary(var)
             
@@ -41,7 +41,7 @@ def make_model(X, Y, A, keep_prob, learning_rate):
     with tf.name_scope('DN2'):
         bn2 = tf.layers.batch_normalization(dense1)
         dense2 = tf.layers.dense(bn2, 200, tf.nn.relu)
-        dense2 = tf.nn.dropout(dense2, keep_prob = keep_prob)
+        dense2 = tf.layers.dropout(dense2, rate=keep_prob)
         for var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='den2'):
             var_summary(var)
             
@@ -50,7 +50,7 @@ def make_model(X, Y, A, keep_prob, learning_rate):
     with tf.name_scope('DN3'):
         bn3 = tf.layers.batch_normalization(dense2)
         dense3 = tf.layers.dense(bn3, 2, tf.nn.relu)
-        dense3 = tf.nn.dropout(dense3, keep_prob = keep_prob)
+        dense3 = tf.layers.dropout(dense3, rate=keep_prob)
         for var in tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='den3'):
             var_summary(var)
         
