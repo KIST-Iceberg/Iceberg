@@ -10,17 +10,17 @@ import tensorflow as tf
 import numpy as np
 from sklearn.metrics import log_loss
 
-from models.CNN import model_new_conv
+from models.CNN import model_sep_layer
 from data import process
 from data import data_input
 
 # Hyper-parameters
-TOTAL_EPOCH = 1
+TOTAL_EPOCH = 500
 BATCH_SIZE = 100
-STARTER_LEARNING_RATE = 1e-3
+STARTER_LEARNING_RATE = 1e-5
 DECAY_RATE = 0.9
 DECAY_STEPS = 20
-DROPOUT_RATE = 0.8
+DROPOUT_RATE = 0.6
 RANDOM_SEED = int(np.random.random() * 1000)
 #RANDOM_SEED = 981
 
@@ -50,14 +50,14 @@ def train(is_valid):
 
     # input placeholder
     with tf.name_scope('input'):
-        X = tf.placeholder(tf.float32, [None, 75, 75, 9], name='X')
+        X = tf.placeholder(tf.float32, [None, 75, 75, 3], name='X')
         Y = tf.placeholder(tf.float32, [None, 2], name='Y')
         A = tf.placeholder(tf.float32, [None, 5], name='A')
         keep_prob = tf.placeholder(tf.float32, name='keep_prob')
         learning_rate = tf.placeholder(tf.float32, name='learning_rate')
 
     # get train ops
-    _, xent, optimizer, accuracy = model_new_conv.make_model(
+    _, xent, optimizer, accuracy = model_sep_layer.make_model(
         X, Y, A, keep_prob, learning_rate)
 
     # summary hyperparam

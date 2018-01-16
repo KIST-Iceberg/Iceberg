@@ -84,31 +84,41 @@ def high_filter(images, length=1):
     return img_back
 
 
-def lee_filter(images, size=75):
-    """
-    lee filter
+# def lee_filter(images, size=75):
+#     """
+#     lee filter
 
-    :param images: images, must be square
-    :param size: images width or heigh size
-    """
-    result = []
-    for img in images:
-        # img = images[i, :, :, :]
-        img_mean = uniform_filter(img, (size, size, 3))
-        img_sqr_mean = uniform_filter(img**2, (size, size, 3))
-        img_variance = img_sqr_mean - img_mean**2
+#     :param images: images, must be square
+#     :param size: images width or heigh size
+#     """
+#     result = []
+#     for img in images:
+#         # img = images[i, :, :, :]
+#         img_mean = uniform_filter(img, (size, size, 1))
+#         img_sqr_mean = uniform_filter(img**2, (size, size, 1))
+#         img_variance = img_sqr_mean - img_mean**2
 
-        overall_variance = variance(img)
+#         overall_variance = variance(img)
 
-        img_weights = img_variance**2 / (img_variance**2 + overall_variance**2)
-        img_output = img_mean + img_weights * (img - img_mean)
+#         img_weights = img_variance**2 / (img_variance**2 + overall_variance**2)
+#         img_output = img_mean + img_weights * (img - img_mean)
 
-        img_output = np.power(np.abs(img_output), 2)  # Gamma correction
+#         img_output = np.power(np.abs(img_output), 2)  # Gamma correction
 
-        result.append(img_output)
+#         result.append(img_output)
 
-    return np.stack(result)
+#     return np.stack(result)
 
+def lee_filter(img, size):
+    img_mean = uniform_filter(img, (size, size))
+    img_sqr_mean = uniform_filter(img**2, (size, size))
+    img_variance = img_sqr_mean - img_mean**2
+
+    overall_variance = variance(img)
+
+    img_weights = img_variance**2 / (img_variance**2 + overall_variance**2)
+    img_output = img_mean + img_weights * (img - img_mean)
+    return img_output
 
 def iso(arr, rate=2):
     p = arr > (np.mean(arr)+rate*np.std(arr))
@@ -251,8 +261,8 @@ def flip_image(images, labels, angles, direction='both'):
     assert flipped_images.shape[0] == flipped_angels.shape[0]
 
     # image, label match check
-    assert flipped_labels[128] == labels[128 // multiplyer]
-    assert flipped_angels[456] == angles[456 // multiplyer]
+    assert flipped_labels[128].all() == labels[128 // multiplyer].all()
+    assert flipped_angels[456].all() == angles[456 // multiplyer].all()
 
     return flipped_images, flipped_labels, flipped_angels
 
@@ -298,7 +308,7 @@ def load_from_pickle(is_test=False):
     return images, labels, angles
 
 
-def pre_process_data(is_test=False): 
+def pre_process_data(is_test=False, to_one_hot=True): 
     """
     Data Pre-Process
 
@@ -323,9 +333,10 @@ def pre_process_data(is_test=False):
             if band is not "mean":
                 sample = data.loc[i, band]
                 sample = np.reshape(sample, (75, 75))
-                sample = iso(sample)
             else:
                 sample = (channel[0] + channel[1]) / 2
+                # sample = lee_filter(sample, 75)
+                sample = iso(sample)
             channel.append(sample)
 
         img = np.stack(channel, axis=2)
@@ -384,8 +395,9 @@ def pre_process_data(is_test=False):
         one_hot_data = np.eye(classes)[data]
         assert one_hot_data.shape[-1] == classes
         return one_hot_data
-
-    labels = one_hot(labels)
+    
+    if to_one_hot:
+        labels = one_hot(labels)
 
     return images, labels, additional
 
@@ -404,12 +416,12 @@ def argumentate_data(images, labels, additional):
     :returns: argumentated images, labels, angels
     """
     # rotate
-    images, labels, additional = rotate_img(images, labels, additional)
-    print("Rotated.", images.shape)
+    # images, labels, additional = rotate_img(images, labels, additional)
+    # print("Rotated.", images.shape)
 
     # flip
-    # images, labels, angles = flip_image(images, labels, angles, direction='vertical')
-    # print("Flipped.", images.shape)
+    images, labels, additional = flip_image(images, labels, additional, direction='horizontal')
+    print("Flipped.", images.shape)
 
     return images, labels, additional
 
@@ -419,7 +431,7 @@ def main(is_test=False):
 
     # data pre-processing
     print("Pre-Processing Start")
-    images, labels, additional = pre_process_data(is_test)
+    images, labels, additional = pre_process_data(is_test, to_one_hot=True)
 
     # data argumentation
     if not is_test:
@@ -431,13 +443,13 @@ def main(is_test=False):
 
     # load from pickle
     i, l, a = load_from_pickle(is_test=is_test)
-    print('image', i, i.shape)
-    print('label', l, l.shape)
-    print('additional', a, additional.shape)
+    print('image', i.shape)
+    print('label', l.shape)
+    print('additional', a.shape)
 
     print("Data Processing Done.")
 
 
 if __name__ == '__main__':
-    # main(is_test=False)
     main(is_test=False)
+    main(is_test=True)
