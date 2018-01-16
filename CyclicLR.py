@@ -128,5 +128,3 @@ class CyclicLR(Callback):
 
 		for k, v in logs.items():
 			self.history.setdefault(k, []).append(v)
-			
-			

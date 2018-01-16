@@ -5,8 +5,15 @@ main
 
 import train
 import test
+from data import process
 
+def main(valid=True):
+    
+    train.train(valid)
+    test.test(train.LOG_TRAIN_PATH, is_test=(not valid))
 
 if __name__ == '__main__':
-    train.train(is_valid=True)
-    # test.test(train.LOG_TRAIN_PATH, is_test=True)
+    # main(True)
+    process.main(is_test=False)
+    process.main(is_test=True)
+    main(False)

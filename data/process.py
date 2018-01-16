@@ -84,30 +84,74 @@ def high_filter(images, length=1):
     return img_back
 
 
-def lee_filter(images, size=75):
-    """
-    lee filter
+# def lee_filter(images, size=75):
+#     """
+#     lee filter
 
-    :param images: images, must be square
-    :param size: images width or heigh size
-    """
-    result = []
-    for img in images:
-        # img = images[i, :, :, :]
-        img_mean = uniform_filter(img, (size, size, 3))
-        img_sqr_mean = uniform_filter(img**2, (size, size, 3))
-        img_variance = img_sqr_mean - img_mean**2
+#     :param images: images, must be square
+#     :param size: images width or heigh size
+#     """
+#     result = []
+#     for img in images:
+#         # img = images[i, :, :, :]
+#         img_mean = uniform_filter(img, (size, size, 1))
+#         img_sqr_mean = uniform_filter(img**2, (size, size, 1))
+#         img_variance = img_sqr_mean - img_mean**2
 
-        overall_variance = variance(img)
+#         overall_variance = variance(img)
 
-        img_weights = img_variance**2 / (img_variance**2 + overall_variance**2)
-        img_output = img_mean + img_weights * (img - img_mean)
+#         img_weights = img_variance**2 / (img_variance**2 + overall_variance**2)
+#         img_output = img_mean + img_weights * (img - img_mean)
 
-        img_output = np.power(np.abs(img_output), 2)  # Gamma correction
+#         img_output = np.power(np.abs(img_output), 2)  # Gamma correction
 
-        result.append(img_output)
+#         result.append(img_output)
 
-    return np.stack(result)
+#     return np.stack(result)
+
+def lee_filter(img, size):
+    img_mean = uniform_filter(img, (size, size))
+    img_sqr_mean = uniform_filter(img**2, (size, size))
+    img_variance = img_sqr_mean - img_mean**2
+
+    overall_variance = variance(img)
+
+    img_weights = img_variance**2 / (img_variance**2 + overall_variance**2)
+    img_output = img_mean + img_weights * (img - img_mean)
+    return img_output
+
+def iso(arr, rate=2):
+    p = arr > (np.mean(arr)+rate*np.std(arr))
+    return p * arr
+
+
+def crop_center(img, cx, cy, size=48):
+
+    def bound(value):
+        """
+        calculate start and end pos with boundary
+        """
+        # calculate start, end pos with bound
+        start = 0 if value - size//2 <= 0 else value-size//2
+        end = 75 if value + size//2 >= 75 else value+size//2
+
+        # resize start-end to crop size
+        c_size = abs(start-end)
+        if c_size != size:
+            if start == 0:
+                end += (size - c_size)
+            else:
+                start -= (size - c_size)
+        
+        assert abs(start - end) == size
+
+        return start, end
+    
+    # get x, y pos 
+    sx, ex = bound(cx)
+    sy, ey = bound(cy)
+
+    return img[sx:ex, sy:ey]
 
 
 def rotate_img(images, labels, angles):
@@ -217,8 +261,8 @@ def flip_image(images, labels, angles, direction='both'):
     assert flipped_images.shape[0] == flipped_angels.shape[0]
 
     # image, label match check
-    assert flipped_labels[128] == labels[128 // multiplyer]
-    assert flipped_angels[456] == angles[456 // multiplyer]
+    assert flipped_labels[128].all() == labels[128 // multiplyer].all()
+    assert flipped_angels[456].all() == angles[456 // multiplyer].all()
 
     return flipped_images, flipped_labels, flipped_angels
 
@@ -264,7 +308,7 @@ def load_from_pickle(is_test=False):
     return images, labels, angles
 
 
-def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하도록 변경
+def pre_process_data(is_test=False, to_one_hot=True): 
     """
     Data Pre-Process
 
@@ -281,25 +325,32 @@ def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하�
     print("Origin Data Loaded.")
 
     # make list to ndarray
-    img_dict = {}
+    images = []
 
-    for band in ["band_1", "band_2"]:
-        samples = data.loc[:, band].values
-        for i in range(samples.size):
-            samples[i] = np.reshape(samples[i], (75, 75))
+    for i in range(data.shape[0]):
+        channel = []
+        for band in ["band_1", "band_2", "mean"]:
+            if band is not "mean":
+                sample = data.loc[i, band]
+                sample = np.reshape(sample, (75, 75))
+            else:
+                sample = (channel[0] + channel[1]) / 2
+                # sample = lee_filter(sample, 75)
+                sample = iso(sample)
+            channel.append(sample)
 
-        img_dict[band] = np.stack(samples)
+        img = np.stack(channel, axis=2)
+        assert img.shape == (75, 75, 3)
+        images.append(img)
 
-    origin_images = np.stack((img_dict["band_1"], img_dict["band_2"]), axis=3)
+    images = np.stack(images, axis=3)
+    images = np.transpose(images, (3, 0, 1, 2))
+    assert images.shape[1:4] == (75,75,3)
 
-    # convert check
-    assert origin_images[720, 64, 32, 0] == data.loc[720, "band_1"][64, 32]
-    assert origin_images[123, 6, 71, 1] == data.loc[123, "band_2"][6, 71]
-    assert origin_images[123, 6, 71, 1] != data.loc[123, "band_1"][6, 71]
     print("Image to Numpy Done.")
 
     # labels
-    labels = np.zeros(origin_images.shape[0], dtype=int) if is_test else data.is_iceberg.values
+    labels = np.zeros(images.shape[0], dtype=int) if is_test else data.is_iceberg.values
 
     # additional data
     # angles
@@ -327,27 +378,28 @@ def pre_process_data(is_test=False):  # TODO Train, Test로 나눠서 가능하�
     assert additional.shape == (angles.shape[0], 5)
 
     # generate combined channel
-    combined = gen_combined_channel(origin_images)
-    print("Combined.", combined.shape)
+    # combined = gen_combined_channel(origin_images)
+    # print("Combined.", combined.shape)
 
     # filter
-    lee_filtered = lee_filter(combined)
-    high_filtered = high_filter(combined)
-    filtered = np.concatenate([combined, lee_filtered, high_filtered], 3)
+    # lee_filtered = lee_filter(combined)
+    # high_filtered = high_filter(combined)
+    # filtered = np.concatenate([combined, lee_filtered, high_filtered], 3)
     
-    assert lee_filtered.shape[3] + high_filtered.shape[3] + combined.shape[3] == filtered.shape[3]
+    # assert lee_filtered.shape[3] + high_filtered.shape[3] + combined.shape[3] == filtered.shape[3]
 
-    print("Filtered.", filtered.shape)
+    # print("Filtered.", filtered.shape)
 
     def one_hot(data, classes=2):
         """ one hot """
         one_hot_data = np.eye(classes)[data]
         assert one_hot_data.shape[-1] == classes
         return one_hot_data
+    
+    if to_one_hot:
+        labels = one_hot(labels)
 
-    labels = one_hot(labels)
-
-    return filtered, labels, additional
+    return images, labels, additional
 
 
 def argumentate_data(images, labels, additional):
@@ -364,12 +416,12 @@ def argumentate_data(images, labels, additional):
     :returns: argumentated images, labels, angels
     """
     # rotate
-    images, labels, additional = rotate_img(images, labels, additional)
-    print("Rotated.", images.shape)
+    # images, labels, additional = rotate_img(images, labels, additional)
+    # print("Rotated.", images.shape)
 
     # flip
-    # images, labels, angles = flip_image(images, labels, angles, direction='vertical')
-    # print("Flipped.", images.shape)
+    images, labels, additional = flip_image(images, labels, additional, direction='horizontal')
+    print("Flipped.", images.shape)
 
     return images, labels, additional
 
@@ -379,7 +431,7 @@ def main(is_test=False):
 
     # data pre-processing
     print("Pre-Processing Start")
-    images, labels, additional = pre_process_data(is_test)
+    images, labels, additional = pre_process_data(is_test, to_one_hot=True)
 
     # data argumentation
     if not is_test:
@@ -391,14 +443,13 @@ def main(is_test=False):
 
     # load from pickle
     i, l, a = load_from_pickle(is_test=is_test)
-    print('image', i, i.shape)
-    print('label', l, l.shape)
-    print('additional', a, additional.shape)
+    print('image', i.shape)
+    print('label', l.shape)
+    print('additional', a.shape)
 
     print("Data Processing Done.")
 
 
 if __name__ == '__main__':
-    # main(is_test=False)
     main(is_test=False)
-    
+    main(is_test=True)
