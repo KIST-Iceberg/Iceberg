@@ -1,88 +1,145 @@
 # Copy Right Kairos03 2017. All Right Reserved.
 """
-test
+train
 """
+from __future__ import absolute_import
+
+import time
+
 import tensorflow as tf
 import numpy as np
-import pandas as pd
 from sklearn.metrics import log_loss
 
-from data import data_input
+from models import model_conv_simple
+from models import model_new_conv
 from data import process
-import train
+from data import data_input
 
-# hyper parameter
-BATCH_SIZE = train.BATCH_SIZE
+# Hyper-parameters
+LEARNING_RATE = 1e-6
+TOTAL_EPOCH = 200
+BATCH_SIZE = 100
+DROPOUT_RATE = 0.1
+RANDOM_SEED = int(np.random.random() * 1000)
+
+CURRENT = time.time()
+
+SESSION_NAME = '{}_lr{}_ep{}'.format(
+    time.ctime(), LEARNING_RATE, TOTAL_EPOCH)
+LOG_TRAIN_PATH = './log/' + SESSION_NAME + '/train/'
+LOG_TEST_PATH = './log/' + SESSION_NAME + '/test/'
+MODEL_PATH = LOG_TRAIN_PATH + 'model.ckpt'
 
 
-def test(model_path, is_test=False):
-    with tf.Graph().as_default() as graph:
-        # data set load
-        x, y, angle = process.load_from_pickle(is_test=is_test)
-        inputs = data_input.get_dataset(BATCH_SIZE, x, y, angle, is_shuffle=False, is_valid=False)
-        total_batch = inputs.total_batch if is_test else inputs.valid_total_batch
+def train(is_valid):
+    # data set load
+    x, y, angle = process.load_from_pickle()
 
-        print('Test Start')
+    inputs = data_input.get_dataset(
+        BATCH_SIZE, x, y, angle, is_shuffle=True, is_valid=is_valid)
 
-        init_op = tf.global_variables_initializer()
-        saver = tf.train.import_meta_graph(model_path + 'model.ckpt.meta', clear_devices=True)
+    with tf.name_scope('input'):
+        X = tf.placeholder(tf.float32, [None, 75, 75, 9], name='X')
+        Y = tf.placeholder(tf.float32, [None, 2], name='Y')
+        A = tf.placeholder(tf.float32, [None, 5], name='A')
+        keep_prob = tf.placeholder(tf.float32, name='keep_prob')
 
-        with tf.Session() as sess:
-            sess.run(init_op)
-            saver.restore(sess, tf.train.latest_checkpoint(model_path))
-            graph = tf.get_default_graph()
+    _, xent, optimizer, accuracy = model_new_conv.make_model(
+        X, Y, A, keep_prob, LEARNING_RATE)
 
-            X = graph.get_tensor_by_name('input/X:0')
-            Y = graph.get_tensor_by_name('input/Y:0')
-            A = graph.get_tensor_by_name('input/A:0')
-            keep_prob = graph.get_tensor_by_name('input/keep_prob:0')
+    with tf.name_scope('hyperparam'):
+        tf.summary.scalar('learning_rate', LEARNING_RATE)
+        tf.summary.scalar('batch_size', BATCH_SIZE)
+        tf.summary.scalar('dropout_rate', keep_prob)
+        tf.summary.scalar('random_seed', RANDOM_SEED)
 
-            # load Variables and ops
-            probability = sess.graph.get_tensor_by_name('matrices/proba:0')
-            accuracy = sess.graph.get_tensor_by_name('matrices/accuracy:0')
-            xent = sess.graph.get_tensor_by_name('matrices/xent:0')
+        print()
+        print('Hyper Params')
+        print("====================================================")
+        print('Learning Rate', LEARNING_RATE)
+        print('Batch Size', BATCH_SIZE)
+        print('Dropout Rate', DROPOUT_RATE)
+        print('Random Seed', RANDOM_SEED)
+        print('\n')
 
-            total_predict = None
-            total_acc = total_loss = 0
+    print('Train Start')
 
-            for batch in range(total_batch):
-                # xs, _ = inputs.next_batch()
+    saver = tf.train.Saver()
+    merged = tf.summary.merge_all()
 
-                if not is_test:
-                    xs, ys, ans = inputs.next_batch(valid_set=True)
-                    acc, loss = sess.run([accuracy, xent],
-                                         feed_dict={X: xs,
-                                                    Y: ys,
-                                                    A: ans,
-                                                    keep_prob: 1})
+    with tf.Session() as sess:
+        
+        tf.global_variables_initializer().run()
+        
+        train_writer = tf.summary.FileWriter(LOG_TRAIN_PATH, sess.graph)
+        test_writer = tf.summary.FileWriter(LOG_TEST_PATH)
 
-                    total_acc += acc
-                    total_loss += loss
+        total_batch = inputs.total_batch
+        if is_valid:
+            valid_total_batch = inputs.valid_total_batch
 
-                else:
-                    xs, ys, ans = inputs.next_batch(valid_set=False)
-                    predict = sess.run(probability,
-                                       feed_dict={X: xs,
-                                                  Y: ys,
-                                                  A: ans,
-                                                  keep_prob: 1})
-                    if total_predict is None:
-                        total_predict = predict
-                    else:
-                        total_predict = np.concatenate((total_predict, predict))
+        probability = sess.graph.get_tensor_by_name('matrices/proba:0')
 
-            if not is_test:
-                print('Accuracy: {:.6f}, Loss: {:.6f}'.format(total_acc/total_batch, total_loss/total_batch))
-            else:
-                idx = pd.read_json('data/origin/test.json')
-                idx = idx['id']
-                is_iceberg = total_predict[:, 1]
-                data = pd.DataFrame({'id': idx, 'is_iceberg': is_iceberg}, index=None)
-                data.to_csv('test.csv', index=False, float_format='%.6f')
-                print('Log Loss', log_loss(inputs.label, is_iceberg))
+        for epoch in range(TOTAL_EPOCH):
 
-        print('Test Finish')
+            epoch_loss = epoch_acc = 0
+            xs = ys = None
+
+            for batch_num in range(total_batch):
+                xs, ys, ans = inputs.next_batch(RANDOM_SEED, valid_set=False)
+
+                _, loss, acc = sess.run([optimizer, xent, accuracy],
+                                        feed_dict={X: xs, Y: ys, A: ans, keep_prob: DROPOUT_RATE})
+                epoch_loss += loss
+                epoch_acc += acc
+
+                # display time spend for 20 batch
+                # if batch_num % 20 == 0:
+                #     print("[{:05.3f}] Batch {} finish.".format(time.time() - last_time, batch_num))
+                #     last_time = time.time()
+
+            summary = sess.run(merged,
+                               feed_dict={X: xs, Y: ys, A: ans, keep_prob: DROPOUT_RATE})
+            train_writer.add_summary(summary, epoch)
+
+            epoch_loss = epoch_loss / total_batch
+            epoch_acc = epoch_acc / total_batch
+            if epoch % 20 == 19 or epoch == 0:
+                print('[{:05.3f}] TRAIN EP: {:05d} | loss: {:0.5f} | acc: {:0.5f}'
+                      .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc))
+
+            # valid
+            if is_valid:
+
+                epoch_loss = epoch_acc = logloss = 0
+                xs = ys = None
+
+                for batch_num in range(valid_total_batch):
+                    xs, ys, ans = inputs.next_batch(RANDOM_SEED, valid_set=True)
+
+                    acc, loss, predict = sess.run([accuracy, xent, probability],
+                                            feed_dict={X: xs, Y: ys, A: ans, keep_prob: 1})
+                    epoch_loss += loss
+                    epoch_acc += acc
+                    logloss += log_loss(ys, predict)
+
+                summary = sess.run(merged,
+                                   feed_dict={X: xs, Y: ys, A: ans, keep_prob: 1})
+                test_writer.add_summary(summary, epoch)
+
+                epoch_loss = epoch_loss / total_batch
+                epoch_acc = epoch_acc / valid_total_batch
+                logloss = logloss / valid_total_batch
+                if epoch % 20 == 19 or epoch == 0:
+                    print('[{:05.3f}] VALID EP: {:05d} | loss: {:1.5f} | acc: {:1.5f} | logloss: {:1.5f}'
+                            .format(time.time() - CURRENT, epoch, epoch_loss, epoch_acc, logloss))
+
+        # model save
+        saver.save(sess, MODEL_PATH)
+
+    print('Train Finish')
 
 
 if __name__ == '__main__':
-    test('./log/train/Tue Jan  2 09:48:16 2018_lr0.0001_ep30_b30/train/', is_test=True)
+    train(is_valid=True)
+    # train(is_valid=False)
