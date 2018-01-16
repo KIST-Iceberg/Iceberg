@@ -53,6 +53,7 @@ def test(model_path, is_test=False):
                 if not is_test:
                     xs, ys, ans = inputs.next_batch(RANDOM_SEED, valid_set=True)
                     acc, loss, predict = sess.run([accuracy, xent, probability],
+
                                          feed_dict={X: xs,
                                                     Y: ys,
                                                     A: ans,
