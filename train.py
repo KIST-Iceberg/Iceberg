@@ -15,12 +15,12 @@ from data import process
 from data import data_input
 
 # Hyper-parameters
-TOTAL_EPOCH = 500
+TOTAL_EPOCH = 800
 BATCH_SIZE = 100
 STARTER_LEARNING_RATE = 1e-5
-DECAY_RATE = 0.9
-DECAY_STEPS = 20
-DROPOUT_RATE = 0.6
+DECAY_RATE = 0.8
+DECAY_STEPS = 50
+DROPOUT_RATE = 0.8
 RANDOM_SEED = int(np.random.random() * 1000)
 #RANDOM_SEED = 981
 

@@ -16,4 +16,4 @@ if __name__ == '__main__':
     # main(True)
     process.main(is_test=False)
     process.main(is_test=True)
-    main(False)
+    main(valid=True)

@@ -335,8 +335,7 @@ def pre_process_data(is_test=False, to_one_hot=True):
                 sample = np.reshape(sample, (75, 75))
             else:
                 sample = (channel[0] + channel[1]) / 2
-                # sample = lee_filter(sample, 75)
-                sample = iso(sample)
+            sample = iso(sample)
             channel.append(sample)
 
         img = np.stack(channel, axis=2)
